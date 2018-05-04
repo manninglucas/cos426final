@@ -153,13 +153,14 @@ class Game {
         // friction bubbles
         if(((this.rightPressed == false && this.leftPressed == false) || this.downPressed == true) && this.player.pos.getComponent(1) >= this.height - this.player.height/2) {
             if(Math.abs(this.player.vel.x) > 10 && Math.abs(this.player.vel.x) < 80) {
-                for(var i = 0; i < 10; i++) {
+                for(var i = 0; i < 25; i++) {
                     this.ctx.beginPath();
+                    var angle = Math.random()*Math.PI/4;
                     if(this.player.vel.x > 0) {
-                        this.ctx.arc(this.player.pos.x - Math.floor(30*Math.random()), this.player.pos.y + this.player.height/2 - Math.floor(10*Math.random()), Math.random() * 2, 0, 2 * Math.PI);
+                        this.ctx.arc(this.player.pos.x - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
                     else if(this.player.vel.x < 0) {
-                        this.ctx.arc(this.player.pos.x + Math.floor(30*Math.random()), this.player.pos.y + this.player.height/2 - Math.floor(10*Math.random()), Math.random() * 2, 0, 2 * Math.PI);
+                        this.ctx.arc(this.player.pos.x + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
                     this.ctx.fill();
                     this.ctx.stroke();
