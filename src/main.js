@@ -1,6 +1,5 @@
 // main.js
 // Lucas Manning
-import THREE from '../lib/three.min.js';
 // globals =====================================================================
 
 let game_g;
@@ -27,7 +26,7 @@ class Game {
         // update setup
         // @test entity
         let e = new Entity(new THREE.Vector2(this.width / 2, this.height / 2), 
-            20, 20, new THREE.Vector2(0, 0));
+            20, 40, new THREE.Vector2(0, 0));
         this.entities = [e];
         this.gravity = new THREE.Vector2(0, 9.8);
     }
@@ -51,6 +50,7 @@ class Game {
     }
 
     draw() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
         // this is very parallelizable. Multithreaded?
         this.entities.forEach(entity => {
             this.ctx.fillRect(entity.pos.x - (entity.width / 2), 
