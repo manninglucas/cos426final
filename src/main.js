@@ -27,7 +27,9 @@ class Game {
         // @test entity
         let e = new Entity(new THREE.Vector2(this.width / 2, this.height / 2), 
             20, 40, new THREE.Vector2(0, 0));
-        this.entities = [e];
+        let ground = new Entity(new THREE.Vector2(this.width / 2, this.height - 100), 
+            this.width, 50, new THREE.Vector2(0, 0), false);
+        this.entities = [e, ground];
         this.gravity = new THREE.Vector2(0, 9.8);
     }
 
@@ -46,7 +48,7 @@ class Game {
     // need to use a good detection scheme, ideally one that has better than
     // n^2 runtime
     resolveCollision(entity) {
-
+        
     }
 
     draw() {
