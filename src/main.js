@@ -39,17 +39,56 @@ class Game {
     update(delta_t) {
         var force = new THREE.Vector2(0, 0);
         force.add(this.gravity);
+
+
         var playerMovement = new THREE.Vector2(0, 0);
-        if(this.rightPressed == true) playerMovement.setComponent(0, 7);
-        if(this.leftPressed == true) playerMovement.setComponent(0, -7);
-        //if(this.upPressed == true) playerMovement.setComponent(1, playerMovement.getComponent(1)+7);
-        if(this.downPressed == true) playerMovement.setComponent(1, playerMovement.getComponent(1)-7);
+        if(this.rightPressed == true) {
+            if(this.player.pos.getComponent(1) >= this.height - this.player.height/2) {
+                playerMovement.setComponent(0, playerMovement.getComponent(0) + 50);
+            }
+                playerMovement.setComponent(0, playerMovement.getComponent(0) + 25);
+        }
+
+        if(this.leftPressed == true)
+            {
+            if(this.player.pos.getComponent(1) >= this.height - this.player.height/2){
+                playerMovement.setComponent(0, playerMovement.getComponent(0) - 50);
+            }
+            else
+                playerMovement.setComponent(0, playerMovement.getComponent(0) - 25);
+        }
+
+        if(this.upPressed == true && this.player.pos.getComponent(1) >= this.height - this.player.height/2) {
+            this.player.vel.setComponent(1, -50);
+        }
+
+        if(this.downPressed == true) {
+            playerMovement.setComponent(1, playerMovement.getComponent(1)+75);
+        }
+
+        // friction
+        if(this.player.pos.getComponent(1) >= this.height - this.player.height/2){
+            if (this.rightPressed == false && this.leftPressed == false) {
+                if(this.player.vel.getComponent(0) > 0)
+                    playerMovement.setComponent(0, playerMovement.getComponent(0) - 20);
+                else if(this.player.vel.getComponent(0) < 0)
+                    playerMovement.setComponent(0, playerMovement.getComponent(0) + 20);
+            }
+            else if (this.downPressed == true) {
+                if(this.player.vel.getComponent(0) > 0)
+                    playerMovement.setComponent(0, playerMovement.getComponent(0) - 100);
+                else if(this.player.vel.getComponent(0) < 0)
+                    playerMovement.setComponent(0, playerMovement.getComponent(0) + 100);
+            }
+        }
+
         force.add(playerMovement);
+        //console.log(force);
         this.entities.forEach(entity => {
             if (entity.dynamic === true) {
                 // these two calls are very parallelizable. Multithreaded?
                 entity.applyForce(this.gravity, delta_t);
-                entity.updatePosition(delta_t);
+                entity.updatePosition(this.width, this.height, delta_t);
 
                 // this needs to be sequential to avoid race conditions
                 this.resolveCollision(entity);
@@ -57,7 +96,7 @@ class Game {
         });
 
         this.player.applyForce(force, delta_t);
-        this.player.updatePosition(delta_t);
+        this.player.updatePosition(this.width, this.height, delta_t);
     }
 
     // need to use a good detection scheme, ideally one that has better than
@@ -69,7 +108,6 @@ class Game {
     
 
      keyPressedHandler(e) {
-        console.log(e);
       if(e.keyCode == 87) {
         this.upPressed = true;
       }
@@ -102,6 +140,7 @@ class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
         // this is very parallelizable. Multithreaded?
+
         this.entities.forEach(entity => {
             this.ctx.fillRect(entity.pos.x - (entity.width / 2), 
                 entity.pos.y - (entity.height / 2), 
@@ -110,6 +149,30 @@ class Game {
         this.ctx.fillRect(this.player.pos.x - (this.player.width / 2), 
                 this.player.pos.y - (this.player.height / 2), 
                 this.player.width, this.player.height);
+
+        // friction bubbles
+        if(((this.rightPressed == false && this.leftPressed == false) || this.downPressed == true) && this.player.pos.getComponent(1) >= this.height - this.player.height/2) {
+            if(Math.abs(this.player.vel.x) > 10 && Math.abs(this.player.vel.x) < 80) {
+                for(var i = 0; i < 10; i++) {
+                    this.ctx.beginPath();
+                    if(this.player.vel.x > 0) {
+                        this.ctx.arc(this.player.pos.x - Math.floor(30*Math.random()), this.player.pos.y + this.player.height/2 - Math.floor(10*Math.random()), Math.random() * 2, 0, 2 * Math.PI);
+                    }
+                    else if(this.player.vel.x < 0) {
+                        this.ctx.arc(this.player.pos.x + Math.floor(30*Math.random()), this.player.pos.y + this.player.height/2 - Math.floor(10*Math.random()), Math.random() * 2, 0, 2 * Math.PI);
+                    }
+                    this.ctx.fill();
+                    this.ctx.stroke();
+                }
+            }
+        }
+    }
+
+    randn_bm() {
+        var u = 0, v = 0;
+        while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+        while(v === 0) v = Math.random();
+        return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
     }
     
 }
@@ -125,12 +188,24 @@ class Entity {
         this.dynamic = dynamic;
     }
 
-    updatePosition(delta_t) {
+    updatePosition(width, height, delta_t) {
         this.pos.add(this.vel.clone().multiplyScalar(delta_t));
+        if(this.pos.getComponent(1) >= height-this.height/2) this.pos.setComponent(1, height-this.height/2);
+        if(this.pos.getComponent(0) >= width - this.width/2 && this.vel.getComponent(0)>0) {
+            this.pos.setComponent(0, width-this.width/2);
+            this.vel.setComponent(0,0);
+        }
+        if(this.pos.getComponent(0) < this.width/2 && this.vel.getComponent(0)<0) {
+            this.pos.setComponent(0, this.width/2);
+            this.vel.setComponent(0,0);
+        }
+        
     }
 
     applyForce(force, delta_t) {
         this.vel.add(force.clone().multiplyScalar(delta_t));
+        if(this.vel.getComponent(0) > 100) this.vel.setComponent(0, 100);
+        if(this.vel.getComponent(0) < -100) this.vel.setComponent(0, -100)
     }
 }
 
@@ -139,8 +214,8 @@ class Player extends Entity {
         super(pos, width, height, vel, dynamic);
     }
 
-    updatePosition(delta_t) {
-        super.updatePosition(delta_t);
+    updatePosition(width, height, delta_t) {
+        super.updatePosition(width, height, delta_t);
     }
 
     applyForce(force, delta_t) {
