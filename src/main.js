@@ -347,17 +347,18 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
-
-window.onload = function() {
-    let levels = JSON.parse(levels);
-    game_g = new Game(document.getElementById('canvas')); 
+function loadGame(levels) {
+    game_g = new Game(document.getElementById('canvas'), levels); 
     document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
     document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-    //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
-    // setTimeout code taken from: https://javascript.info/settimeout-setinterval
+
     setTimeout(function run() {
         game_g.update(1 / UPDATE_TICK_RATE);
         setTimeout(run, UPDATE_TICK_RATE);
     }, UPDATE_TICK_RATE);
     requestAnimationFrame(animate);
+}
+
+window.onload = function() {
+    fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
 };
