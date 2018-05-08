@@ -30,6 +30,7 @@ class Game {
         this.rightPressed = false;
         this.leftPressed = false;
         this.lives = 3;
+        this.submitted = false;
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
         // draw setup
@@ -351,14 +352,23 @@ function animate() {
 
 window.onload = function() {
     let levels = JSON.parse(levels);
-    game_g = new Game(document.getElementById('canvas')); 
-    document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
-    document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-    //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
-    // setTimeout code taken from: https://javascript.info/settimeout-setinterval
-    setTimeout(function run() {
-        game_g.update(1 / UPDATE_TICK_RATE);
-        setTimeout(run, UPDATE_TICK_RATE);
-    }, UPDATE_TICK_RATE);
-    requestAnimationFrame(animate);
+    var tracker = 0;
+    var lives = 3
+    while(tracker!=5) {
+        game_g = new Game(document.getElementById('canvas'), levels[tracker], lives); 
+        document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
+        document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
+        //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
+        // setTimeout code taken from: https://javascript.info/settimeout-setinterval
+        setTimeout(function run() {
+            game_g.update(1 / UPDATE_TICK_RATE);
+            setTimeout(run, UPDATE_TICK_RATE);
+        }, UPDATE_TICK_RATE);
+        requestAnimationFrame(animate);
+        while(!game_g.submitted) {
+            
+        }
+        lives = game_g.lives;
+        tracker++
+    }
 };
