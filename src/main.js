@@ -209,6 +209,7 @@ class Game {
             seconds = seconds%60;
         if(minutes > 59)
             minutes = mintes%60;
+        // this line taken from https://jsfiddle.net/Daniel_Hug/pvk6p/
         var stopwatch = (hours ? (hours > 9 ? hours : "0" + hours) : "00") + ":" + (minutes ? (minutes > 9 ? minutes : "0" + minutes) : "00") + ":" + (seconds > 9 ? seconds : "0" + seconds);
         this.ctx.fillText(stopwatch, canvas.width-65, 20);
     }
