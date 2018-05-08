@@ -29,6 +29,8 @@ class Game {
         this.downPressed = false;
         this.rightPressed = false;
         this.leftPressed = false;
+        this.lives = 3;
+        this.startTime=new Date();
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
 
@@ -146,14 +148,17 @@ class Game {
     }
 
     draw() {
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        // this is very parallelizable. Multithreaded?
-
+        //this.ctx.clearRect(0, 0, this.width, this.height);
+        var img = new Image();
+        img.src = "flower.png";
+        this.ctx.drawImage(img, 0, 0, this.width, this.height);
+        this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
             this.ctx.fillRect(entity.pos.x - (entity.width / 2), 
                 entity.pos.y - (entity.height / 2), 
                 entity.width, entity.height);
         });
+        this.ctx.fillStyle = "#000000";
         this.ctx.fillRect(this.player.pos.x - (this.player.width / 2), 
                 this.player.pos.y - (this.player.height / 2), 
                 this.player.width, this.player.height);
@@ -164,10 +169,10 @@ class Game {
                 for(var i = 0; i < 25; i++) {
                     this.ctx.beginPath();
                     var angle = Math.random()*Math.PI/4;
-                    if(this.player.vel.x > 0) {
+                    if(this.player.vel.x < 0) {
                         this.ctx.arc(this.player.pos.x - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
-                    else if(this.player.vel.x < 0) {
+                    else if(this.player.vel.x > 0) {
                         this.ctx.arc(this.player.pos.x + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
                     this.ctx.fill();
@@ -175,6 +180,21 @@ class Game {
                 }
             }
         }
+
+        //Draw score
+        this.ctx.font = "16px Arial";
+        this.ctx.fillText("Late Days: "+this.lives, 8, 20);
+
+        //Timer
+        var seconds = Math.floor((new Date() - this.startTime)/1000);
+        var minutes = Math.floor(seconds / 60);
+        var hours = Math.floor(minutes / 60);
+        if(seconds > 59)
+            seconds = seconds%60;
+        if(minutes > 59)
+            minutes = mintes%60;
+        var stopwatch = (hours ? (hours > 9 ? hours : "0" + hours) : "00") + ":" + (minutes ? (minutes > 9 ? minutes : "0" + minutes) : "00") + ":" + (seconds > 9 ? seconds : "0" + seconds);
+        this.ctx.fillText(stopwatch, canvas.width-65, 20);
     }
 
     randn_bm() {
