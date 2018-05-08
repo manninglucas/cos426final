@@ -31,6 +31,7 @@ class Game {
         this.leftPressed = false;
         this.lives = 3;
         this.startTime=new Date();
+        this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
 
@@ -40,10 +41,24 @@ class Game {
             20, 40, new THREE.Vector3(0, 0));
         let ground = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
             300, 50, new THREE.Vector3(0, 0), false);
-        this.entities = [ ground];
+        let ground1 = new Entity(new THREE.Vector3(this.width, this.height - 100), 
+            300, 50, new THREE.Vector3(0, 0), false);
+        let ground2 = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
+            300, 50, new THREE.Vector3(0, 0), false);
+        this.entities = [ground, ground1];
         this.player = new Player(new THREE.Vector3(this.width / 2, 50), 
             20, 40, new THREE.Vector3(0, 0));
         this.gravity = new THREE.Vector3(0, 9.8);
+    }
+
+    updateCamera() {
+        if (this.player.pos.x > this.camera.x + (this.width / 4)) {
+            let offset = this.player.pos.x - (this.camera.x + (this.width / 4));
+            this.camera.setX(this.camera.x + offset);
+        } else if (this.player.pos.x < this.camera.x - (this.width / 4)) {
+            let offset = this.player.pos.x - (this.camera.x - (this.width / 4));
+            this.camera.setX(this.camera.x + offset);
+        }
     }
 
     update(delta_t) {
@@ -106,6 +121,7 @@ class Game {
 
         this.player.applyForce(force, delta_t);
         this.player.updatePosition(this.width, this.height, delta_t);
+        this.updateCamera();
     }
 
     // need to use a good detection scheme, ideally one that has better than
@@ -154,13 +170,13 @@ class Game {
         this.ctx.drawImage(img, 0, 0, this.width, this.height);
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
-            this.ctx.fillRect(entity.pos.x - (entity.width / 2), 
+            this.ctx.fillRect(entity.left() - (this.camera.x) + (this.width / 2) , 
                 entity.pos.y - (entity.height / 2), 
                 entity.width, entity.height);
         });
         this.ctx.fillStyle = "#000000";
-        this.ctx.fillRect(this.player.pos.x - (this.player.width / 2), 
-                this.player.pos.y - (this.player.height / 2), 
+        this.ctx.fillRect(this.player.left() - this.camera.x + (this.width / 2), 
+                this.player.top(),
                 this.player.width, this.player.height);
 
         // friction bubbles
@@ -169,11 +185,11 @@ class Game {
                 for(var i = 0; i < 25; i++) {
                     this.ctx.beginPath();
                     var angle = Math.random()*Math.PI/4;
-                    if(this.player.vel.x < 0) {
-                        this.ctx.arc(this.player.pos.x - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    if(this.player.vel.x > 0) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
-                    else if(this.player.vel.x > 0) {
-                        this.ctx.arc(this.player.pos.x + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    else if(this.player.vel.x < 0) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
                     }
                     this.ctx.fill();
                     this.ctx.stroke();
