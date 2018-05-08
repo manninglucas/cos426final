@@ -30,6 +30,7 @@ class Game {
         this.rightPressed = false;
         this.leftPressed = false;
         this.lives = 3;
+        this.submitted = false;
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
         // draw setup
@@ -209,6 +210,7 @@ class Game {
             seconds = seconds%60;
         if(minutes > 59)
             minutes = mintes%60;
+        // this line taken from https://jsfiddle.net/Daniel_Hug/pvk6p/
         var stopwatch = (hours ? (hours > 9 ? hours : "0" + hours) : "00") + ":" + (minutes ? (minutes > 9 ? minutes : "0" + minutes) : "00") + ":" + (seconds > 9 ? seconds : "0" + seconds);
         this.ctx.fillText(stopwatch, canvas.width-65, 20);
     }
@@ -348,17 +350,29 @@ function animate() {
 }
 
 function loadGame(levels) {
-    game_g = new Game(document.getElementById('canvas'), levels); 
-    document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
-    document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-
-    setTimeout(function run() {
-        game_g.update(1 / UPDATE_TICK_RATE);
-        setTimeout(run, UPDATE_TICK_RATE);
-    }, UPDATE_TICK_RATE);
-    requestAnimationFrame(animate);
+    var tracker = 0;
+    var lives = 3
+    while(tracker!=5) {
+        game_g = new Game(document.getElementById('canvas'), levels[tracker], lives); 
+        document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
+        document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
+        //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
+        // setTimeout code taken from: https://javascript.info/settimeout-setinterval
+        setTimeout(function run() {
+            game_g.update(1 / UPDATE_TICK_RATE);
+            setTimeout(run, UPDATE_TICK_RATE);
+        }, UPDATE_TICK_RATE);
+        requestAnimationFrame(animate);
+        while(!game_g.submitted) {
+            
+        }
+        lives = game_g.lives;
+        tracker++
+    }
 }
+
 
 window.onload = function() {
     fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
+    
 };
