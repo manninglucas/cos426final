@@ -349,6 +349,7 @@ function animate() {
 
 
 window.onload = function() {
+    let levels = JSON.parse(levels);
     game_g = new Game(document.getElementById('canvas')); 
     document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
     document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
