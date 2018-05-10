@@ -82,8 +82,7 @@ class Game {
             this.player.faceRight();
         }
 
-        if(this.leftPressed == true)
-            {
+        if(this.leftPressed == true) {
             if(this.player.isJumping()){
                 playerMovement.setComponent(0, playerMovement.x - 50);
             }
@@ -101,7 +100,7 @@ class Game {
         }
 
         // friction
-        if (Math.abs(this.player.vel.x) > 0.5) {
+        if (Math.abs(this.player.vel.x) > 1) {
             if(!this.player.isJumping() && !this.player.isFalling()){
                 if (this.rightPressed == false && this.leftPressed == false) {
                     if(this.player.vel.x > 0)
@@ -117,7 +116,7 @@ class Game {
                 }
             }
         } else {
-            this.player.vel.setX(0);
+            this.player.vel.setX(this.player.vel.x * 0.3);
         }
 
         force.add(playerMovement);
@@ -330,37 +329,58 @@ class Entity {
     }
 }
 
+class Sprite {
+    constructor(name, count) {
+        this.currentFrame = 0;
+        this.frames = [];
+        // 1/6 of the draw speed
+        this.updateRate = 1/6;
+
+        for (let i = 0; i < count; i++) {
+            let frame = new Image();
+            frame.src = `${name}_${i}.png`;
+
+            this.frames.push(frame);
+        }
+    }
+
+    getCurrentFrame() {
+        if (this.currentFrame >= (1 / this.updateRate) * this.frames.length)
+            this.currentFrame = 0;
+        let f = this.frames[Math.floor(this.currentFrame * this.updateRate)];
+        this.currentFrame++;
+        return f;
+    }
+}
+
 class Player extends Entity {
     constructor(pos, width, height, vel, dynamic = true) {
         super(pos, width, height, vel, dynamic);
         this._isJumping = false;
         this.frameIndex = 0;
         this.facingRight = true;
+        this.idleAnimation = new Sprite('player/idle', 4);
+        this.runningAnimation = new Sprite('player/run', 6);
+        this.jumpAnimation = new Sprite('player/jump', 1);
+        this.fallAnimation = new Sprite('player/fall', 1);
     }
 
     playerFrame(ctx) {
-        let img = new Image();
         if (this._isJumping)  {
-            img.src = this.vel.y < 0 ? `player/jump_0.png` : `player/jump_1.png`;
-            return img;
+            let anim = this.vel.y < 0 ? this.jumpAnimation : this.fallAnimation;
+            return anim.getCurrentFrame();
         }
 
         if (this.isFalling()) {
-            img.src = `player/jump_1.png`;
-            return img;
+            return this.fallAnimation.getCurrentFrame();
         }
 
         if (Math.abs(this.vel.x) < 0.5) {
-            if (this.frameIndex > 23) this.frameIndex = 0;
-            img.src = `player/idle_${Math.floor(this.frameIndex / 6)}.png`;
-            if (++this.frameIndex > 23) this.frameIndex = 0;
-            return img;
+            return this.idleAnimation.getCurrentFrame();
+        } else {
+            return this.runningAnimation.getCurrentFrame();
         }
 
-            console.log(this.vel.x)
-        img.src = `player/run_${Math.floor(this.frameIndex / 6)}.png`;
-        if (++this.frameIndex > 35) this.frameIndex = 0;
-        return img;
     }
 
     faceRight() { this.facingRight = true; }
