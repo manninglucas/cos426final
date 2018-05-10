@@ -110,14 +110,20 @@ class Game {
                 }
                 if (this.downPressed == true) {
                     if(this.player.vel.x > 0)
-                        playerMovement.setComponent(0, playerMovement.x - 100);
+                        playerMovement.setComponent(0, playerMovement.x - 40);
                     else if(this.player.vel.x < 0)
-                        playerMovement.setComponent(0, playerMovement.x + 100);
+                        playerMovement.setComponent(0, playerMovement.x + 40);
+                } else {
                 }
             }
         } else {
             this.player.vel.setX(this.player.vel.x * 0.3);
         }
+
+        if (this.downPressed)
+            this.player.stopping = true;
+        else
+            this.player.stopping = false;
 
         force.add(playerMovement);
         this.entities.forEach(entity => {
@@ -210,21 +216,33 @@ class Game {
         }
 
         // friction bubbles
-        if(((this.rightPressed == false && this.leftPressed == false) || this.downPressed == true) && !this.player.isFalling() && !this.player.isJumping()) {
-            if(Math.abs(this.player.vel.x) > 10 && Math.abs(this.player.vel.x) < 80) {
+        if(!this.player.isFalling() && !this.player.isJumping()) {
                 for(var i = 0; i < 25; i++) {
                     this.ctx.beginPath();
                     var angle = Math.random()*Math.PI/4;
-                    if(this.player.vel.x > 0) {
-                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    if(this.player.vel.x > 0 && this.leftPressed) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                        + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
+                         Math.random() * 2, 0, 2 * Math.PI);
                     }
-                    else if(this.player.vel.x < 0) {
-                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    else if(this.player.vel.x < 0 && this.rightPressed) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                        - 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle), 
+                        Math.random() * 2, 0, 2 * Math.PI);
+                    } else if (this.downPressed && Math.abs(this.player.vel.x) > 5) {
+                        if (this.player.vel.x < 0) {
+                            this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                            + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
+                            Math.random() * 2, 0, 2 * Math.PI);
+                        } else if (this.player.vel.x > 0) {
+                            this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                            - 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle), 
+                            Math.random() * 2, 0, 2 * Math.PI);
+                        }
                     }
                     this.ctx.fill();
                     this.ctx.stroke();
                 }
-            }
         }
 
         //Draw score
@@ -291,6 +309,7 @@ class Entity {
     }
 
     resolveCollision(e, delta_t, normal) {
+        this.falling = false;
         this.vel.projectOnPlane(normal);
         let offsets = new THREE.Vector3( 
             normal.x > 0 ? (this.left() - e.right()) : (this.right() - e.left()),
@@ -363,6 +382,8 @@ class Player extends Entity {
         this.runningAnimation = new Sprite('player/run', 6);
         this.jumpAnimation = new Sprite('player/jump', 1);
         this.fallAnimation = new Sprite('player/fall', 1);
+        this.falling = true;
+        this.stopping = false;
     }
 
     playerFrame(ctx) {
@@ -371,7 +392,7 @@ class Player extends Entity {
             return anim.getCurrentFrame();
         }
 
-        if (this.isFalling()) {
+        if (this.isFalling() || this.stopping) {
             return this.fallAnimation.getCurrentFrame();
         }
 
@@ -391,7 +412,7 @@ class Player extends Entity {
     }
 
     isFalling() {
-        return !this._isJumping && Math.abs(this.vel.y) > 1;
+        return !this._isJumping && this.falling;
     }
     
     isJumping() { return this._isJumping; }
@@ -408,6 +429,7 @@ class Player extends Entity {
     }
 
     applyForce(force, delta_t) {
+        if (this.vel.y < 0)this.falling = true;
         super.applyForce(force, delta_t);
     }
 }
