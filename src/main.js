@@ -18,9 +18,9 @@ const collisionSide = {
 // =============================================================================
 
 class Game {
-    constructor(canvas) {
+    constructor(canvas, levels) {
         // canvas setup
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas.getContext("2d");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         this.width = canvas.width;
@@ -30,25 +30,26 @@ class Game {
         this.rightPressed = false;
         this.leftPressed = false;
         this.lives = 3;
+        this.level = 0
+        this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
+        this.entities = [];
 
-        // update setup
-        // @test entity
-        let e = new Entity(new THREE.Vector3(this.width / 2, this.height / 2), 
-            20, 40, new THREE.Vector3(0, 0));
-        let ground = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        let ground1 = new Entity(new THREE.Vector3(this.width, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        let ground2 = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        this.entities = [ground, ground1];
-        this.player = new Player(new THREE.Vector3(this.width / 2, 50), 
-            20, 40, new THREE.Vector3(0, 0));
+        const levelData = this.levels[this.level];
+        levelData.platforms.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.entities.push(platform);
+        });
+
+        let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+            levelData.playerStart.y * this.height);
+        this.player = new Player(pos, 20, 40, new THREE.Vector3());
         this.gravity = new THREE.Vector3(0, 9.8);
     }
 
@@ -66,6 +67,11 @@ class Game {
         var force = new THREE.Vector3(0, 0);
         force.add(this.gravity);
 
+        if (this.player.top() < 0) {
+            let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+                levelData.playerStart.y * this.height);
+            this.player = new Player(pos, 20, 40, new THREE.Vector3());
+        }
 
         var playerMovement = new THREE.Vector3(0, 0);
         if(this.rightPressed == true) {
@@ -77,7 +83,7 @@ class Game {
 
         if(this.leftPressed == true)
             {
-            if(this.player.pos.y >= this.height - this.player.height/2){
+            if(this.player.isJumping()){
                 playerMovement.setComponent(0, playerMovement.x - 50);
             }
             else
@@ -150,6 +156,7 @@ class Game {
     }
 
     keyNeutral(e) {
+        
       if(e.keyCode == 87) {
         this.upPressed = false;
       }
@@ -164,19 +171,30 @@ class Game {
       }
     }
 
+    drawPlayer() {
+
+    }
+
     draw() {
-        //this.ctx.clearRect(0, 0, this.width, this.height);
+        this.ctx.clearRect(0, 0, this.width, this.height);
         var img = new Image();
         img.src = "flower.png";
-        this.ctx.drawImage(img, 0, 0, this.width, this.height);
+//        this.ctx.drawImage(img, 0, 0, this.width, this.height);
+
+        const levelData = this.levels[this.level];
+        let goalImg = new Image();
+        goalImg.src = 'submit.png';
+        this.ctx.drawImage(goalImg, Math.round(this.width * levelData.submitLocation.x - (this.camera.x) + (this.width / 2)),
+             Math.round(this.height * levelData.submitLocation.y));
+        
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
-            this.ctx.fillRect(entity.left() - (this.camera.x) + (this.width / 2) , 
-                entity.pos.y - (entity.height / 2), 
+            this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
+                entity.top(), 
                 entity.width, entity.height);
         });
         this.ctx.fillStyle = "#000000";
-        this.ctx.fillRect(this.player.left() - this.camera.x + (this.width / 2), 
+        this.ctx.fillRect(Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 this.player.width, this.player.height);
 
@@ -274,33 +292,23 @@ class Entity {
     }
 
     top() {
-        return Math.round(this.pos.y) - (this.height / 2);
+        return Math.round(this.pos.y - (this.height / 2));
     }
 
     bottom() {
-        return Math.round(this.pos.y) + (this.height / 2);
+        return Math.round(this.pos.y + (this.height / 2));
     }
 
     right() {
-        return Math.round(this.pos.x) + (this.width / 2);
+        return Math.round(this.pos.x + (this.width / 2));
     }
 
     left() {
-        return Math.round(this.pos.x) - (this.width / 2);
+        return Math.round(this.pos.x - (this.width / 2));
     }
 
     updatePosition(width, height, delta_t) {
         this.pos.add(this.vel.clone().multiplyScalar(delta_t));
-        if(this.pos.y >= height-this.height/2) this.pos.setComponent(1, height-this.height/2);
-        if(this.pos.x >= width - this.width/2 && this.vel.x>0) {
-            this.pos.setComponent(0, width-this.width/2);
-            this.vel.setComponent(0,0);
-        }
-        if(this.pos.x < this.width/2 && this.vel.x<0) {
-            this.pos.setComponent(0, this.width/2);
-            this.vel.setComponent(0,0);
-        }
-        
     }
 
     applyForce(force, delta_t) {
@@ -338,7 +346,6 @@ class Player extends Entity {
     }
 
     applyForce(force, delta_t) {
-
         super.applyForce(force, delta_t);
     }
 }
@@ -352,27 +359,22 @@ function animate() {
 function loadGame(levels) {
     var tracker = 0;
     var lives = 3
-    while(tracker!=5) {
-        game_g = new Game(document.getElementById('canvas'), levels[tracker], lives); 
-        document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
-        document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-        //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
-        // setTimeout code taken from: https://javascript.info/settimeout-setinterval
-        setTimeout(function run() {
-            game_g.update(1 / UPDATE_TICK_RATE);
-            setTimeout(run, UPDATE_TICK_RATE);
-        }, UPDATE_TICK_RATE);
-        requestAnimationFrame(animate);
-        while(!game_g.submitted) {
-            
-        }
-        lives = game_g.lives;
-        tracker++
-    }
+    game_g = new Game(document.getElementById('canvas'), levels); 
+    document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
+    document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
+    document.addEventListener("keyup", (e) => {
+        if (e.keyCode == 82) game_g = new Game(document.getElementById('canvas'), levels)
+    }); 
+    setTimeout(function run() {
+        game_g.update(1 / UPDATE_TICK_RATE);
+        setTimeout(run, UPDATE_TICK_RATE);
+    }, UPDATE_TICK_RATE);
+    requestAnimationFrame(animate);
 }
 
 
 window.onload = function() {
-    fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
-    
+    console.log('loading');
+    //fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
+    loadGame(levels);
 };

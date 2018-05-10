@@ -1,4 +1,4 @@
-[ 
+let levels = [ 
     {
         "platforms" : [
             {
@@ -17,7 +17,7 @@
 
         "backgroundImage" : "flower.png",
 
-        "submitLocation" : {"x" : 1.4, "y" : 0.8}
+        "submitLocation" : {"x" : 1.4, "y" : 0.7}
     },
     {
         "platforms" : [
