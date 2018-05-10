@@ -49,7 +49,7 @@ class Game {
 
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
             levelData.playerStart.y * this.height);
-        this.player = new Player(pos, 20, 40, new THREE.Vector3());
+        this.player = new Player(pos, 64, 64, new THREE.Vector3());
         this.gravity = new THREE.Vector3(0, 9.8);
     }
 
@@ -79,6 +79,7 @@ class Game {
                 playerMovement.setComponent(0, playerMovement.x + 50);
             }
                 playerMovement.setComponent(0, playerMovement.x + 25);
+            this.player.faceRight();
         }
 
         if(this.leftPressed == true)
@@ -88,6 +89,7 @@ class Game {
             }
             else
                 playerMovement.setComponent(0, playerMovement.x - 25);
+            this.player.faceLeft();
         }
 
         if(this.upPressed == true) {
@@ -99,19 +101,23 @@ class Game {
         }
 
         // friction
-        if(!this.player.isJumping() && !this.player.isFalling()){
-            if (this.rightPressed == false && this.leftPressed == false) {
-                if(this.player.vel.x > 0)
-                    playerMovement.setComponent(0, playerMovement.x - 20);
-                else if(this.player.vel.x < 0)
-                    playerMovement.setComponent(0, playerMovement.x + 20);
+        if (Math.abs(this.player.vel.x) > 0.5) {
+            if(!this.player.isJumping() && !this.player.isFalling()){
+                if (this.rightPressed == false && this.leftPressed == false) {
+                    if(this.player.vel.x > 0)
+                        playerMovement.setComponent(0, playerMovement.x - 20);
+                    else if(this.player.vel.x < 0)
+                        playerMovement.setComponent(0, playerMovement.x + 20);
+                }
+                if (this.downPressed == true) {
+                    if(this.player.vel.x > 0)
+                        playerMovement.setComponent(0, playerMovement.x - 100);
+                    else if(this.player.vel.x < 0)
+                        playerMovement.setComponent(0, playerMovement.x + 100);
+                }
             }
-            if (this.downPressed == true) {
-                if(this.player.vel.x > 0)
-                    playerMovement.setComponent(0, playerMovement.x - 100);
-                else if(this.player.vel.x < 0)
-                    playerMovement.setComponent(0, playerMovement.x + 100);
-            }
+        } else {
+            this.player.vel.setX(0);
         }
 
         force.add(playerMovement);
@@ -171,10 +177,6 @@ class Game {
       }
     }
 
-    drawPlayer() {
-
-    }
-
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
         var img = new Image();
@@ -194,9 +196,19 @@ class Game {
                 entity.width, entity.height);
         });
         this.ctx.fillStyle = "#000000";
-        this.ctx.fillRect(Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
+        let playerImg = this.player.playerFrame();
+        if (!this.player.facingRight) {
+            this.ctx.save();
+            this.ctx.scale(-1, 1);
+            this.ctx.drawImage(playerImg, -Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
+                this.player.top(),
+                -this.player.width, this.player.height);
+            this.ctx.restore();
+        } else {
+            this.ctx.drawImage(playerImg, Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 this.player.width, this.player.height);
+        }
 
         // friction bubbles
         if(((this.rightPressed == false && this.leftPressed == false) || this.downPressed == true) && !this.player.isFalling() && !this.player.isJumping()) {
@@ -322,7 +334,37 @@ class Player extends Entity {
     constructor(pos, width, height, vel, dynamic = true) {
         super(pos, width, height, vel, dynamic);
         this._isJumping = false;
+        this.frameIndex = 0;
+        this.facingRight = true;
     }
+
+    playerFrame(ctx) {
+        let img = new Image();
+        if (this._isJumping)  {
+            img.src = this.vel.y < 0 ? `player/jump_0.png` : `player/jump_1.png`;
+            return img;
+        }
+
+        if (this.isFalling()) {
+            img.src = `player/jump_1.png`;
+            return img;
+        }
+
+        if (Math.abs(this.vel.x) < 0.5) {
+            if (this.frameIndex > 23) this.frameIndex = 0;
+            img.src = `player/idle_${Math.floor(this.frameIndex / 6)}.png`;
+            if (++this.frameIndex > 23) this.frameIndex = 0;
+            return img;
+        }
+
+            console.log(this.vel.x)
+        img.src = `player/run_${Math.floor(this.frameIndex / 6)}.png`;
+        if (++this.frameIndex > 35) this.frameIndex = 0;
+        return img;
+    }
+
+    faceRight() { this.facingRight = true; }
+    faceLeft() { this.facingRight = false; }
 
     updatePosition(width, height, delta_t) {
         super.updatePosition(width, height, delta_t);
