@@ -35,11 +35,18 @@ class Game {
         this.submitted = false;
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
+        this.backgroundImage = new Image();
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
-        this.entities = [];
-
         const levelData = this.levels[this.level];
+        this.entities = [];
+        this.goalImg = new Image();
+        this.goalImg.src = 'submit.png';
+        let goalpos = new THREE.Vector3(levelData.submitLocation.x * this.width, levelData.submitLocation.y * this.height);
+        this.submitButton = new Entity(goalpos,
+            380, 48, new THREE.Vector3, false);
+
+        this.backgroundImage.src = levelData.backgroundImage;
         levelData.platforms.forEach(p => {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
@@ -51,6 +58,24 @@ class Game {
             levelData.playerStart.y * this.height);
         this.player = new Player(pos, 64, 64, new THREE.Vector3());
         this.gravity = new THREE.Vector3(0, 9.8);
+    }
+
+    nextLevel() {
+        this.level++;
+        const levelData = this.levels[this.level];
+
+        this.backgroundImage.src = levelData.backgroundImage;
+        this.entities = [];
+        levelData.platforms.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.entities.push(platform);
+        });
+
+        let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+            levelData.playerStart.y * this.height);
+        this.player = new Player(pos, 64, 64, new THREE.Vector3());
     }
 
     updateCamera() {
@@ -137,6 +162,9 @@ class Game {
             this.resolveCollision(entity, delta_t);
         });
 
+        if (this.player.detectCollison(this.submitButton, delta_t) !== undefined) {
+            this.nextLevel();
+        }
         this.player.applyForce(force, delta_t);
         this.player.updatePosition(this.width, this.height, delta_t);
         this.updateCamera();
@@ -184,15 +212,11 @@ class Game {
 
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
-        var img = new Image();
-        img.src = "flower.png";
-//        this.ctx.drawImage(img, 0, 0, this.width, this.height);
+        this.ctx.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
 
         const levelData = this.levels[this.level];
-        let goalImg = new Image();
-        goalImg.src = 'submit.png';
-        this.ctx.drawImage(goalImg, Math.round(this.width * levelData.submitLocation.x - (this.camera.x) + (this.width / 2)),
-             Math.round(this.height * levelData.submitLocation.y));
+        this.ctx.drawImage(this.goalImg, Math.round(this.submitButton.left() - (this.camera.x) + (this.width / 2)),
+             this.submitButton.top());
         
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
