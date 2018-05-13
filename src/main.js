@@ -366,9 +366,9 @@ window.onload = function() {
         }, UPDATE_TICK_RATE);
         requestAnimationFrame(animate);
         while(!game_g.submitted) {
-            
+
         }
         lives = game_g.lives;
-        tracker++
+        tracker++;
     }
 };
