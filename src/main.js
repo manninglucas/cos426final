@@ -18,9 +18,9 @@ const collisionSide = {
 // =============================================================================
 
 class Game {
-    constructor(canvas) {
+    constructor(canvas, levels) {
         // canvas setup
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas.getContext("2d");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         this.width = canvas.width;
@@ -30,26 +30,52 @@ class Game {
         this.rightPressed = false;
         this.leftPressed = false;
         this.lives = 3;
+        this.level = 0
+        this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
+        this.backgroundImage = new Image();
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
+        const levelData = this.levels[this.level];
+        this.entities = [];
+        this.goalImg = new Image();
+        this.goalImg.src = 'submit.png';
+        let goalpos = new THREE.Vector3(levelData.submitLocation.x * this.width, levelData.submitLocation.y * this.height);
+        this.submitButton = new Entity(goalpos,
+            380, 48, new THREE.Vector3, false);
 
-        // update setup
-        // @test entity
-        let e = new Entity(new THREE.Vector3(this.width / 2, this.height / 2), 
-            20, 40, new THREE.Vector3(0, 0));
-        let ground = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        let ground1 = new Entity(new THREE.Vector3(this.width, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        let ground2 = new Entity(new THREE.Vector3(this.width / 2, this.height - 100), 
-            300, 50, new THREE.Vector3(0, 0), false);
-        this.entities = [ground, ground1];
-        this.player = new Player(new THREE.Vector3(this.width / 2, 50), 
-            20, 40, new THREE.Vector3(0, 0));
+        this.backgroundImage.src = levelData.backgroundImage;
+        levelData.platforms.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.entities.push(platform);
+        });
+
+        let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+            levelData.playerStart.y * this.height);
+        this.player = new Player(pos, 64, 64, new THREE.Vector3());
         this.gravity = new THREE.Vector3(0, 9.8);
+    }
+
+    nextLevel() {
+        this.level++;
+        const levelData = this.levels[this.level];
+
+        this.backgroundImage.src = levelData.backgroundImage;
+        this.entities = [];
+        levelData.platforms.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.entities.push(platform);
+        });
+
+        let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+            levelData.playerStart.y * this.height);
+        this.player = new Player(pos, 64, 64, new THREE.Vector3());
     }
 
     updateCamera() {
@@ -66,6 +92,11 @@ class Game {
         var force = new THREE.Vector3(0, 0);
         force.add(this.gravity);
 
+        if (this.player.top() < 0) {
+            let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
+                levelData.playerStart.y * this.height);
+            this.player = new Player(pos, 20, 40, new THREE.Vector3());
+        }
 
         var playerMovement = new THREE.Vector3(0, 0);
         if(this.rightPressed == true) {
@@ -73,15 +104,16 @@ class Game {
                 playerMovement.setComponent(0, playerMovement.x + 50);
             }
                 playerMovement.setComponent(0, playerMovement.x + 25);
+            this.player.faceRight();
         }
 
-        if(this.leftPressed == true)
-            {
-            if(this.player.pos.y >= this.height - this.player.height/2){
+        if(this.leftPressed == true) {
+            if(this.player.isJumping()){
                 playerMovement.setComponent(0, playerMovement.x - 50);
             }
             else
                 playerMovement.setComponent(0, playerMovement.x - 25);
+            this.player.faceLeft();
         }
 
         if(this.upPressed == true) {
@@ -93,20 +125,30 @@ class Game {
         }
 
         // friction
-        if(!this.player.isJumping() && !this.player.isFalling()){
-            if (this.rightPressed == false && this.leftPressed == false) {
-                if(this.player.vel.x > 0)
-                    playerMovement.setComponent(0, playerMovement.x - 20);
-                else if(this.player.vel.x < 0)
-                    playerMovement.setComponent(0, playerMovement.x + 20);
+        if (Math.abs(this.player.vel.x) > 1) {
+            if(!this.player.isJumping() && !this.player.isFalling()){
+                if (this.rightPressed == false && this.leftPressed == false) {
+                    if(this.player.vel.x > 0)
+                        playerMovement.setComponent(0, playerMovement.x - 20);
+                    else if(this.player.vel.x < 0)
+                        playerMovement.setComponent(0, playerMovement.x + 20);
+                }
+                if (this.downPressed == true) {
+                    if(this.player.vel.x > 0)
+                        playerMovement.setComponent(0, playerMovement.x - 40);
+                    else if(this.player.vel.x < 0)
+                        playerMovement.setComponent(0, playerMovement.x + 40);
+                } else {
+                }
             }
-            if (this.downPressed == true) {
-                if(this.player.vel.x > 0)
-                    playerMovement.setComponent(0, playerMovement.x - 100);
-                else if(this.player.vel.x < 0)
-                    playerMovement.setComponent(0, playerMovement.x + 100);
-            }
+        } else {
+            this.player.vel.setX(this.player.vel.x * 0.3);
         }
+
+        if (this.downPressed)
+            this.player.stopping = true;
+        else
+            this.player.stopping = false;
 
         force.add(playerMovement);
         this.entities.forEach(entity => {
@@ -120,6 +162,9 @@ class Game {
             this.resolveCollision(entity, delta_t);
         });
 
+        if (this.player.detectCollison(this.submitButton, delta_t) !== undefined) {
+            this.nextLevel();
+        }
         this.player.applyForce(force, delta_t);
         this.player.updatePosition(this.width, this.height, delta_t);
         this.updateCamera();
@@ -150,6 +195,7 @@ class Game {
     }
 
     keyNeutral(e) {
+        
       if(e.keyCode == 87) {
         this.upPressed = false;
       }
@@ -165,37 +211,62 @@ class Game {
     }
 
     draw() {
-        //this.ctx.clearRect(0, 0, this.width, this.height);
-        var img = new Image();
-        img.src = "flower.png";
-        this.ctx.drawImage(img, 0, 0, this.width, this.height);
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.ctx.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
+
+        const levelData = this.levels[this.level];
+        this.ctx.drawImage(this.goalImg, Math.round(this.submitButton.left() - (this.camera.x) + (this.width / 2)),
+             this.submitButton.top());
+        
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
-            this.ctx.fillRect(entity.left() - (this.camera.x) + (this.width / 2) , 
-                entity.pos.y - (entity.height / 2), 
+            this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
+                entity.top(), 
                 entity.width, entity.height);
         });
         this.ctx.fillStyle = "#000000";
-        this.ctx.fillRect(this.player.left() - this.camera.x + (this.width / 2), 
+        let playerImg = this.player.playerFrame();
+        if (!this.player.facingRight) {
+            this.ctx.save();
+            this.ctx.scale(-1, 1);
+            this.ctx.drawImage(playerImg, -Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
+                this.player.top(),
+                -this.player.width, this.player.height);
+            this.ctx.restore();
+        } else {
+            this.ctx.drawImage(playerImg, Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 this.player.width, this.player.height);
+        }
 
         // friction bubbles
-        if(((this.rightPressed == false && this.leftPressed == false) || this.downPressed == true) && !this.player.isFalling() && !this.player.isJumping()) {
-            if(Math.abs(this.player.vel.x) > 10 && Math.abs(this.player.vel.x) < 80) {
+        if(!this.player.isFalling() && !this.player.isJumping()) {
                 for(var i = 0; i < 25; i++) {
                     this.ctx.beginPath();
                     var angle = Math.random()*Math.PI/4;
-                    if(this.player.vel.x > 0) {
-                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) + 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    if(this.player.vel.x > 0 && this.leftPressed) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                        + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
+                         Math.random() * 2, 0, 2 * Math.PI);
                     }
-                    else if(this.player.vel.x < 0) {
-                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) - 30*Math.random()*Math.cos(angle), this.player.pos.y + this.player.height/2 - 30*Math.random()*Math.sin(angle), Math.random() * 2, 0, 2 * Math.PI);
+                    else if(this.player.vel.x < 0 && this.rightPressed) {
+                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                        - 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle), 
+                        Math.random() * 2, 0, 2 * Math.PI);
+                    } else if (this.downPressed && Math.abs(this.player.vel.x) > 5) {
+                        if (this.player.vel.x < 0) {
+                            this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                            + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
+                            Math.random() * 2, 0, 2 * Math.PI);
+                        } else if (this.player.vel.x > 0) {
+                            this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                            - 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle), 
+                            Math.random() * 2, 0, 2 * Math.PI);
+                        }
                     }
                     this.ctx.fill();
                     this.ctx.stroke();
                 }
-            }
         }
 
         //Draw score
@@ -262,6 +333,7 @@ class Entity {
     }
 
     resolveCollision(e, delta_t, normal) {
+        this.falling = false;
         this.vel.projectOnPlane(normal);
         let offsets = new THREE.Vector3( 
             normal.x > 0 ? (this.left() - e.right()) : (this.right() - e.left()),
@@ -274,33 +346,23 @@ class Entity {
     }
 
     top() {
-        return Math.round(this.pos.y) - (this.height / 2);
+        return Math.round(this.pos.y - (this.height / 2));
     }
 
     bottom() {
-        return Math.round(this.pos.y) + (this.height / 2);
+        return Math.round(this.pos.y + (this.height / 2));
     }
 
     right() {
-        return Math.round(this.pos.x) + (this.width / 2);
+        return Math.round(this.pos.x + (this.width / 2));
     }
 
     left() {
-        return Math.round(this.pos.x) - (this.width / 2);
+        return Math.round(this.pos.x - (this.width / 2));
     }
 
     updatePosition(width, height, delta_t) {
         this.pos.add(this.vel.clone().multiplyScalar(delta_t));
-        if(this.pos.y >= height-this.height/2) this.pos.setComponent(1, height-this.height/2);
-        if(this.pos.x >= width - this.width/2 && this.vel.x>0) {
-            this.pos.setComponent(0, width-this.width/2);
-            this.vel.setComponent(0,0);
-        }
-        if(this.pos.x < this.width/2 && this.vel.x<0) {
-            this.pos.setComponent(0, this.width/2);
-            this.vel.setComponent(0,0);
-        }
-        
     }
 
     applyForce(force, delta_t) {
@@ -310,18 +372,71 @@ class Entity {
     }
 }
 
+class Sprite {
+    constructor(name, count) {
+        this.currentFrame = 0;
+        this.frames = [];
+        // 1/6 of the draw speed
+        this.updateRate = 1/6;
+
+        for (let i = 0; i < count; i++) {
+            let frame = new Image();
+            frame.src = `${name}_${i}.png`;
+
+            this.frames.push(frame);
+        }
+    }
+
+    getCurrentFrame() {
+        if (this.currentFrame >= (1 / this.updateRate) * this.frames.length)
+            this.currentFrame = 0;
+        let f = this.frames[Math.floor(this.currentFrame * this.updateRate)];
+        this.currentFrame++;
+        return f;
+    }
+}
+
 class Player extends Entity {
     constructor(pos, width, height, vel, dynamic = true) {
         super(pos, width, height, vel, dynamic);
         this._isJumping = false;
+        this.frameIndex = 0;
+        this.facingRight = true;
+        this.idleAnimation = new Sprite('player/idle', 4);
+        this.runningAnimation = new Sprite('player/run', 6);
+        this.jumpAnimation = new Sprite('player/jump', 1);
+        this.fallAnimation = new Sprite('player/fall', 1);
+        this.falling = true;
+        this.stopping = false;
     }
+
+    playerFrame(ctx) {
+        if (this._isJumping)  {
+            let anim = this.vel.y < 0 ? this.jumpAnimation : this.fallAnimation;
+            return anim.getCurrentFrame();
+        }
+
+        if (this.isFalling() || this.stopping) {
+            return this.fallAnimation.getCurrentFrame();
+        }
+
+        if (Math.abs(this.vel.x) < 0.5) {
+            return this.idleAnimation.getCurrentFrame();
+        } else {
+            return this.runningAnimation.getCurrentFrame();
+        }
+
+    }
+
+    faceRight() { this.facingRight = true; }
+    faceLeft() { this.facingRight = false; }
 
     updatePosition(width, height, delta_t) {
         super.updatePosition(width, height, delta_t);
     }
 
     isFalling() {
-        return !this._isJumping && Math.abs(this.vel.y) > 1;
+        return !this._isJumping && this.falling;
     }
     
     isJumping() { return this._isJumping; }
@@ -338,7 +453,7 @@ class Player extends Entity {
     }
 
     applyForce(force, delta_t) {
-
+        if (this.vel.y < 0)this.falling = true;
         super.applyForce(force, delta_t);
     }
 }
@@ -349,9 +464,7 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
-
-window.onload = function() {
-    let levels = JSON.parse(levels);
+function loadGame(levels) {
     var tracker = 0;
     var lives = 3
     while(tracker!=5) {
@@ -371,4 +484,22 @@ window.onload = function() {
         lives = game_g.lives;
         tracker++;
     }
+    // game_g = new Game(document.getElementById('canvas'), levels); 
+    // document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
+    // document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
+    // document.addEventListener("keyup", (e) => {
+    //     if (e.keyCode == 82) game_g = new Game(document.getElementById('canvas'), levels)
+    // }); 
+    // setTimeout(function run() {
+    //     game_g.update(1 / UPDATE_TICK_RATE);
+    //     setTimeout(run, UPDATE_TICK_RATE);
+    // }, UPDATE_TICK_RATE);
+    // requestAnimationFrame(animate);
+}
+
+
+window.onload = function() {
+    console.log('loading');
+    //fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
+    loadGame(levels);
 };

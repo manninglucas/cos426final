@@ -1,4 +1,4 @@
-[ 
+let levels = [ 
     {
         "platforms" : [
             {
@@ -17,21 +17,26 @@
 
         "backgroundImage" : "flower.png",
 
-        "submitLocation" : {"x" : 1.4, "y" : 0.8}
+        "submitLocation" : {"x" : 1.4, "y" : 0.7}
     },
     {
         "platforms" : [
-
+            {
+                "x" : 0.1,
+                "y" : 0.9,
+                "width" : 0.2,
+                "height" : 0.1
+            }
         ],
 
         "enemies" : [
             
         ],
 
-        "playerStart" : {},
+        "playerStart" : {"x" : 0.1, "y" : 0.5},
 
-        "backgroundImage" : "",
+        "backgroundImage" : "flower.png",
 
-        "submitLocation" : {}
+        "submitLocation" : {"x" : 1.4, "y" : 0.7}
     }
 ]
