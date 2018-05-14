@@ -54,6 +54,13 @@ class Game {
             this.entities.push(platform);
         });
 
+        levelData.enemies.forEach(e => {
+            let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
+            let enemy = new Enemy(pos, 64, 64, 
+                new THREE.Vector3(0,0));
+            this.entities.push(enemy);
+        });
+
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
             levelData.playerStart.y * this.height);
         this.player = new Player(pos, 64, 64, new THREE.Vector3());
@@ -152,14 +159,29 @@ class Game {
 
         force.add(playerMovement);
         this.entities.forEach(entity => {
+            if (entity instanceof Enemy) {
+                entity.update(this.player, this.entities);
+            }
+
             if (entity.dynamic === true) {
                 // these two calls are very parallelizable. Multithreaded?
                 entity.applyForce(this.gravity, delta_t);
-                entity.updatePosition(this.width, this.height, delta_t);
 
                 // this needs to be sequential to avoid race conditions
             }
-            this.resolveCollision(entity, delta_t);
+            entity.updatePosition(this.width, this.height, delta_t);
+
+            this.entities.forEach(e => {
+                let normal = this.player.detectCollison(e, delta_t);
+                if (normal !== undefined) this.player.resolveCollision(e, delta_t, normal);
+
+                if (entity.dynamic == true) {
+                    if (e._id != entity._id) {
+                        let normal = entity.detectCollison(e, delta_t);
+                        if (normal !== undefined) entity.resolveCollision(e, delta_t, normal);
+                    }
+                }
+            });
         });
 
         if (this.player.detectCollison(this.submitButton, delta_t) !== undefined) {
@@ -168,15 +190,6 @@ class Game {
         this.player.applyForce(force, delta_t);
         this.player.updatePosition(this.width, this.height, delta_t);
         this.updateCamera();
-    }
-
-    // need to use a good detection scheme, ideally one that has better than
-    // n^2 runtime
-    resolveCollision(entity, delta_t) {
-        this.entities.forEach(e => {
-            let normal = this.player.detectCollison(e, delta_t);
-            if (normal !== undefined) this.player.resolveCollision(e, delta_t, normal);
-        });       
     }
 
     keyPressedHandler(e) {
@@ -220,12 +233,17 @@ class Game {
         
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
-            this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
-                entity.top(), 
-                entity.width, entity.height);
+            if (entity.hasSprite) {
+                this.ctx.drawImage(entity.getSprite(), Math.round(entity.left() - (this.camera.x) + (this.width / 2)),
+                    entity.top(), entity.width, entity.height);
+            } else {
+                this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
+                    entity.top(), 
+                    entity.width, entity.height);
+            }
         });
         this.ctx.fillStyle = "#000000";
-        let playerImg = this.player.playerFrame();
+        let playerImg = this.player.getSprite();
         if (!this.player.facingRight) {
             this.ctx.save();
             this.ctx.scale(-1, 1);
@@ -302,8 +320,12 @@ class Entity {
         this.vel = vel;
         this.width = width;
         this.height = height;
+        this.hasSprite = false;
         // does the entity move? false for static platforms 
         this.dynamic = dynamic;
+        this.hostile = false;
+        this.laser = false;
+        this._id = Math.floor(Math.random() * 10000000);
     }
 
     // returns side and point
@@ -396,11 +418,52 @@ class Sprite {
     }
 }
 
+class Enemy extends Entity {
+    constructor(pos, width, height, vel, dynamic = true) {
+        super(pos, width, height, vel, true);
+        this.facingRight = true;
+        this.laserCooldown = 100;
+        this.idleAnimation = new Sprite('enemy/finkle_idle', 2);
+        this.hasSprite = true;
+        this.hostile = true;
+    }
+
+    getSprite() {
+        return this.idleAnimation.getCurrentFrame();
+    }
+
+    // direction: vector pointing from enemy to player
+    createLaser(direction) {
+        let pos = this.pos.clone().add(direction.clone().multiplyScalar(2.5 + (this.width / 2)));
+
+        let laser = new Entity(pos, 5, 5, direction.clone().multiplyScalar(5), false)
+        laser.hostile = true;
+        
+        return laser;
+    }
+
+    update(player, entities) {
+        let direction = player.pos.clone().sub(this.pos).normalize();
+
+        if (direction.x >= 0) 
+            this.facingRight = true;
+        else
+            this.facingRight = false;
+
+        if (this.laserCooldown == 0) {
+            entities.push(this.createLaser(direction));
+            this.laserCooldown = 100;
+        }
+
+        this.laserCooldown--;
+    }
+
+}
+
 class Player extends Entity {
     constructor(pos, width, height, vel, dynamic = true) {
         super(pos, width, height, vel, dynamic);
         this._isJumping = false;
-        this.frameIndex = 0;
         this.facingRight = true;
         this.idleAnimation = new Sprite('player/idle', 4);
         this.runningAnimation = new Sprite('player/run', 6);
@@ -410,7 +473,7 @@ class Player extends Entity {
         this.stopping = false;
     }
 
-    playerFrame(ctx) {
+   getSprite(ctx) {
         if (this._isJumping)  {
             let anim = this.vel.y < 0 ? this.jumpAnimation : this.fallAnimation;
             return anim.getCurrentFrame();

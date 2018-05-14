@@ -10,7 +10,7 @@ let levels = [
         ],
 
         "enemies" : [
-            
+            {"x" : 0.5, "y" : 0.5}           
         ],
 
         "playerStart" : {"x" : 0.1, "y" : 0.5},
