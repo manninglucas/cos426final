@@ -16,6 +16,7 @@ const collisionSide = {
 };
 
 // =============================================================================
+//The rectangle should have x,y,width,height properties
 
 class Game {
     constructor(canvas, levels) {
@@ -25,10 +26,17 @@ class Game {
         canvas.height = window.innerHeight;
         this.width = canvas.width;
         this.height = canvas.height;
+        this.rect = {
+            x:this.width/2-50,
+            y:this.height/2+10,
+            width:100,
+            height:50
+        };
         this.upPressed = false;
         this.downPressed = false;
         this.rightPressed = false;
         this.leftPressed = false;
+        this.currentTime = new Date();
         this.lives = 3;
         this.level = 0;
         this.levels = levels;
@@ -36,10 +44,13 @@ class Game {
         this.startTime=new Date();
         this.camera = new THREE.Vector3(this.width / 2, this.height / 2);
         this.backgroundImage = new Image();
+        this.spike = new Image();
+        this.spike.src = 'spikes.png';
         // draw setup
         this.ctx.fillStyle = 'rgb(0,0,0)';
         const levelData = this.levels[this.level];
         this.entities = [];
+        this.spikes = [];
         this.goalImg = new Image();
         this.goalImg.src = 'submit.png';
         let goalpos = new THREE.Vector3(levelData.submitLocation.x * this.width, levelData.submitLocation.y * this.height);
@@ -47,11 +58,19 @@ class Game {
             380, 48, new THREE.Vector3, false);
 
         this.backgroundImage.src = levelData.backgroundImage;
+
         levelData.platforms.forEach(p => {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
             this.entities.push(platform);
+        });
+
+        levelData.spikes.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let spike = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.spikes.push(spike);
         });
 
         levelData.enemies.forEach(e => {
@@ -64,11 +83,10 @@ class Game {
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
             levelData.playerStart.y * this.height);
         this.player = new Player(pos, 64, 64, new THREE.Vector3());
-        this.gravity = new THREE.Vector3(0, 9.8);
+        this.gravity = new THREE.Vector3(0, 20);
     }
 
-    nextLevel() {
-        this.level++;
+    loadLevel() {
         const levelData = this.levels[this.level];
 
         this.backgroundImage.src = levelData.backgroundImage;
@@ -78,6 +96,22 @@ class Game {
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
             this.entities.push(platform);
+        });
+
+        this.enemies = [];
+        levelData.enemies.forEach(e => {
+            let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
+            let enemy = new Enemy(pos, 64, 64, 
+                new THREE.Vector3(0,0));
+            this.entities.push(enemy);
+        });
+
+        this.spikes = [];
+        levelData.spikes.forEach(p => {
+            let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
+            let spike = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
+                new THREE.Vector3(0,0), false);
+            this.spikes.push(spike);
         });
 
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
@@ -184,15 +218,59 @@ class Game {
             });
         });
 
+        this.spikes.forEach(spike => {
+            if (spike.dynamic === true) {
+                // these two calls are very parallelizable. Multithreaded?
+                spike.applyForce(this.gravity, delta_t);
+                spike.updatePosition(this.width, this.height, delta_t);
+
+                // this needs to be sequential to avoid race conditions
+            }
+            if(this.resolveCollision(spike, delta_t)) this.takesDamage();
+        });
+
         if (this.player.detectCollison(this.submitButton, delta_t) !== undefined) {
-            this.nextLevel();
+            if(this.level < this.levels.length) {
+                this.level++;
+            if(this.level !== this.levels.length) {
+                this.loadLevel();
+                }
+            }
         }
+
+        if(this.player.pos.y > this.height+this.player.height/2 && this.lives !==0) {
+            this.takesDamage();
+        }
+
         this.player.applyForce(force, delta_t);
         this.player.updatePosition(this.width, this.height, delta_t);
         this.updateCamera();
     }
 
+    takesDamage (){
+        this.lives--;
+        if(this.lives!==0)
+            if(this.level !== this.levels.length)
+                this.loadLevel();
+    }
+
+    // need to use a good detection scheme, ideally one that has better than
+    // n^2 runtime
+    resolveCollision(entity, delta_t) {
+        //this.entities.forEach(e => {
+            // Could only check collision if entity is within camera to save time
+        let normal = this.player.detectCollison(entity, delta_t);
+        if (normal !== undefined){
+            this.player.resolveCollision(entity, delta_t, normal);
+            return true;
+        }
+        return false;
+        //});       
+    }
+
+
     keyPressedHandler(e) {
+      if(this.lives == 0 || this.level == this.levels.length) return false;
       if(e.keyCode == 87) {
         this.upPressed = true;
       }
@@ -223,8 +301,24 @@ class Game {
       }
     }
 
+    //Function to get the mouse position
+ getMousePos(canvas, event) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+}
+//Function to check whether a point is inside a rectangle
+isInside(pos, rect){
+    return pos.x > rect.x && pos.x < rect.x+rect.width && pos.y < rect.y+rect.height && pos.y > rect.y && (this.lives==0 || this.level == this.levels.length)
+}
+
+
+
+
     draw() {
-        this.ctx.clearRect(0, 0, this.width, this.height);
+        //this.ctx.clearRect(0, 0, this.width, this.height);
         this.ctx.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
 
         const levelData = this.levels[this.level];
@@ -254,12 +348,22 @@ class Game {
                 }
             }
         });
+
+        this.spikes.forEach(spike => {
+            this.ctx.drawImage(this.spike, Math.round(spike.left() - (this.camera.x) + (this.width / 2)), 
+                spike.top(), 
+                spike.width, spike.height);
+        });
+
         this.ctx.fillStyle = "#000000";
         let playerImg = this.player.getSprite();
         if (!this.player.facingRight) {
             this.ctx.save();
             this.ctx.scale(-1, 1);
             this.ctx.drawImage(playerImg, -Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
+                this.player.top(),
+                -this.player.width, this.player.height);
+            this.ctx.rect(-Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 -this.player.width, this.player.height);
             this.ctx.restore();
@@ -304,7 +408,9 @@ class Game {
         this.ctx.fillText("Late Days: "+this.lives, 8, 20);
 
         //Timer
-        var seconds = Math.floor((new Date() - this.startTime)/1000);
+        if(this.lives!==0 && this.level < this.levels.length)
+            this.currentTime = new Date();
+        var seconds = Math.floor((this.currentTime - this.startTime)/1000);
         var minutes = Math.floor(seconds / 60);
         var hours = Math.floor(minutes / 60);
         if(seconds > 59)
@@ -314,6 +420,41 @@ class Game {
         // this line taken from https://jsfiddle.net/Daniel_Hug/pvk6p/
         var stopwatch = (hours ? (hours > 9 ? hours : "0" + hours) : "00") + ":" + (minutes ? (minutes > 9 ? minutes : "0" + minutes) : "00") + ":" + (seconds > 9 ? seconds : "0" + seconds);
         this.ctx.fillText(stopwatch, canvas.width-65, 20);
+
+        if(this.lives == 0 || this.level == this.levels.length) {
+            this.player.vel = new THREE.Vector3(0, 0);
+            this.ctx.beginPath();
+            this.ctx.rect(this.width/2-150, this.height/2-75, 300, 150);
+            this.ctx.fillStyle = 'rgb(255,255,255)';
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.font = "30px Arial";
+
+            if(this.level == this.levels.length) {
+            this.ctx.fillStyle = 'rgb(0,125,0)';
+            this.ctx.fillText("CONGRATULATIONS", this.width/2-147, this.height/2-25);
+            }
+
+            else {
+            this.ctx.fillStyle = 'rgb(125,0,0)';
+            this.ctx.fillText("YOU DIED", this.width/2-70, this.height/2-25);
+            
+            }
+
+            this.ctx.font = "12px Arial";
+            this.ctx.fillStyle = 'rgb(0,0,0)';
+            this.ctx.fillText(stopwatch, this.width/2-25, this.height/2);
+
+            this.ctx.beginPath();
+            this.ctx.rect(this.width/2-50, this.height/2+10, 100, 50);
+            this.ctx.fillStyle = 'rgb(125,125,125)';
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = 'rgb(0,0,0)';
+            this.ctx.fillText("Play Again", this.width/2-25, this.height/2+35);
+        }
     }
 
     randn_bm() {
@@ -388,11 +529,11 @@ class Entity {
     }
 
     right() {
-        return Math.round(this.pos.x + (this.width / 2));
+        return Math.round(this.pos.x + (this.width / 2)-10);
     }
 
     left() {
-        return Math.round(this.pos.x - (this.width / 2));
+        return Math.round(this.pos.x - (this.width / 2)+10);
     }
 
     updatePosition(width, height, delta_t) {
@@ -556,6 +697,17 @@ function loadGame(levels) {
     document.addEventListener("keyup", (e) => {
         if (e.keyCode == 82) game_g = new Game(document.getElementById('canvas'), levels)
     }); 
+    //Binding the click event on the canvas
+    document.addEventListener("click", function(evt) {
+    var mousePos = game_g.getMousePos(canvas, evt);
+    if (game_g.isInside(mousePos,game_g.rect)) {
+        game_g.lives = 3;
+        game_g.level = 0;
+        game_g.startTime = new Date();
+        game_g.currentTime = new Date();
+        game_g.loadLevel();
+    }  
+}, false);
     setTimeout(function run() {
         game_g.update(1 / UPDATE_TICK_RATE);
         setTimeout(run, UPDATE_TICK_RATE);
