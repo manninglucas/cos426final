@@ -30,7 +30,7 @@ class Game {
         this.rightPressed = false;
         this.leftPressed = false;
         this.lives = 3;
-        this.level = 0
+        this.level = 0;
         this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
@@ -467,34 +467,17 @@ function animate() {
 function loadGame(levels) {
     var tracker = 0;
     var lives = 3
-    while(tracker!=5) {
-        game_g = new Game(document.getElementById('canvas'), levels[tracker], lives); 
-        document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
-        document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-        //document.addEventListener("mousemove", (e) => game_g.mouseMoveHandler(e), false);
-        // setTimeout code taken from: https://javascript.info/settimeout-setinterval
-        setTimeout(function run() {
-            game_g.update(1 / UPDATE_TICK_RATE);
-            setTimeout(run, UPDATE_TICK_RATE);
-        }, UPDATE_TICK_RATE);
-        requestAnimationFrame(animate);
-        while(!game_g.submitted) {
-
-        }
-        lives = game_g.lives;
-        tracker++;
-    }
-    // game_g = new Game(document.getElementById('canvas'), levels); 
-    // document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
-    // document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
-    // document.addEventListener("keyup", (e) => {
-    //     if (e.keyCode == 82) game_g = new Game(document.getElementById('canvas'), levels)
-    // }); 
-    // setTimeout(function run() {
-    //     game_g.update(1 / UPDATE_TICK_RATE);
-    //     setTimeout(run, UPDATE_TICK_RATE);
-    // }, UPDATE_TICK_RATE);
-    // requestAnimationFrame(animate);
+    game_g = new Game(document.getElementById('canvas'), levels); 
+    document.addEventListener("keydown", (e) => game_g.keyPressedHandler(e), false);
+    document.addEventListener("keyup", (e) => game_g.keyNeutral(e), false);
+    document.addEventListener("keyup", (e) => {
+        if (e.keyCode == 82) game_g = new Game(document.getElementById('canvas'), levels)
+    }); 
+    setTimeout(function run() {
+        game_g.update(1 / UPDATE_TICK_RATE);
+        setTimeout(run, UPDATE_TICK_RATE);
+    }, UPDATE_TICK_RATE);
+    requestAnimationFrame(animate);
 }
 
 

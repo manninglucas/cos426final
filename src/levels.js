@@ -6,7 +6,7 @@ let levels = [
                 "y" : 0.9,
                 "width" : 1.5,
                 "height" : 0.1
-            }
+            },
         ],
 
         "enemies" : [
@@ -24,7 +24,13 @@ let levels = [
             {
                 "x" : 0.1,
                 "y" : 0.9,
-                "width" : 0.2,
+                "width" : 0.1,
+                "height" : 0.1
+            },
+            {
+                "x" : .7,
+                "y" : 0.9,
+                "width" : .4,
                 "height" : 0.1
             }
         ],
