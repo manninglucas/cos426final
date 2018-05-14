@@ -231,15 +231,27 @@ class Game {
         this.ctx.drawImage(this.goalImg, Math.round(this.submitButton.left() - (this.camera.x) + (this.width / 2)),
              this.submitButton.top());
         
-        this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
+            this.ctx.fillStyle = "#0095DD";
             if (entity.hasSprite) {
                 this.ctx.drawImage(entity.getSprite(), Math.round(entity.left() - (this.camera.x) + (this.width / 2)),
                     entity.top(), entity.width, entity.height);
             } else {
+                if (entity.laser){
+                    this.ctx.fillStyle = "#FF0000";
+                    this.ctx.save();
+                    this.ctx.translate(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
+                        entity.top());
+                   this.ctx.rotate(entity.angle);
+                    this.ctx.fillRect(-entity.width, -entity.height, 
+                        entity.width, entity.height);
+                    this.ctx.restore();
+                } else {
+
                 this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
                     entity.top(), 
                     entity.width, entity.height);
+                }
             }
         });
         this.ctx.fillStyle = "#000000";
@@ -423,21 +435,29 @@ class Enemy extends Entity {
         super(pos, width, height, vel, true);
         this.facingRight = true;
         this.laserCooldown = 100;
-        this.idleAnimation = new Sprite('enemy/finkle_idle', 2);
+        this.idleAnimation = new Sprite('enemy/finkle_idle', 1);
+        this.shootAnimation = new Sprite('enemy/finkle_shoot', 1);
         this.hasSprite = true;
         this.hostile = true;
     }
 
     getSprite() {
-        return this.idleAnimation.getCurrentFrame();
+        if (this.laserCooldown > 10)
+            return this.idleAnimation.getCurrentFrame();
+        else
+            return this.shootAnimation.getCurrentFrame();
     }
 
     // direction: vector pointing from enemy to player
     createLaser(direction) {
-        let pos = this.pos.clone().add(direction.clone().multiplyScalar(2.5 + (this.width / 2)));
+        let pos = this.pos.clone().add(direction.clone().multiplyScalar(20 + (this.width / 2)));
 
-        let laser = new Entity(pos, 5, 5, direction.clone().multiplyScalar(5), false)
+        let laser = new Entity(pos, 20, 5, direction.clone().multiplyScalar(20), false)
         laser.hostile = true;
+        
+        let angle = Math.atan2(direction.y, direction.x);
+        laser.angle = angle;
+        laser.laser = true;
         
         return laser;
     }
