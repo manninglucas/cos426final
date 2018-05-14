@@ -38,7 +38,7 @@ class Game {
         this.leftPressed = false;
         this.currentTime = new Date();
         this.lives = 3;
-        this.level = 1;
+        this.level = 0;
         this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
@@ -58,6 +58,7 @@ class Game {
             380, 48, new THREE.Vector3, false);
 
         this.backgroundImage.src = levelData.backgroundImage;
+
         levelData.platforms.forEach(p => {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
@@ -70,6 +71,13 @@ class Game {
             let spike = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
             this.spikes.push(spike);
+        });
+
+        levelData.enemies.forEach(e => {
+            let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
+            let enemy = new Enemy(pos, 64, 64, 
+                new THREE.Vector3(0,0));
+            this.entities.push(enemy);
         });
 
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
@@ -88,6 +96,14 @@ class Game {
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
             this.entities.push(platform);
+        });
+
+        this.enemies = [];
+        levelData.enemies.forEach(e => {
+            let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
+            let enemy = new Enemy(pos, 64, 64, 
+                new THREE.Vector3(0,0));
+            this.entities.push(enemy);
         });
 
         this.spikes = [];
@@ -177,14 +193,29 @@ class Game {
 
         force.add(playerMovement);
         this.entities.forEach(entity => {
+            if (entity instanceof Enemy) {
+                entity.update(this.player, this.entities);
+            }
+
             if (entity.dynamic === true) {
                 // these two calls are very parallelizable. Multithreaded?
                 entity.applyForce(this.gravity, delta_t);
-                entity.updatePosition(this.width, this.height, delta_t);
 
                 // this needs to be sequential to avoid race conditions
             }
-            this.resolveCollision(entity, delta_t);
+            entity.updatePosition(this.width, this.height, delta_t);
+
+            this.entities.forEach(e => {
+                let normal = this.player.detectCollison(e, delta_t);
+                if (normal !== undefined) this.player.resolveCollision(e, delta_t, normal);
+
+                if (entity.dynamic == true) {
+                    if (e._id != entity._id) {
+                        let normal = entity.detectCollison(e, delta_t);
+                        if (normal !== undefined) entity.resolveCollision(e, delta_t, normal);
+                    }
+                }
+            });
         });
 
         this.spikes.forEach(spike => {
@@ -236,6 +267,7 @@ class Game {
         return false;
         //});       
     }
+
 
     keyPressedHandler(e) {
       if(this.lives == 0 || this.level == this.levels.length) return false;
@@ -295,9 +327,14 @@ isInside(pos, rect){
         
         this.ctx.fillStyle = "#0095DD";
         this.entities.forEach(entity => {
-            this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
-                entity.top(), 
-                entity.width, entity.height);
+            if (entity.hasSprite) {
+                this.ctx.drawImage(entity.getSprite(), Math.round(entity.left() - (this.camera.x) + (this.width / 2)),
+                    entity.top(), entity.width, entity.height);
+            } else {
+                this.ctx.fillRect(Math.round(entity.left() - (this.camera.x) + (this.width / 2)), 
+                    entity.top(), 
+                    entity.width, entity.height);
+            }
         });
 
         this.spikes.forEach(spike => {
@@ -307,11 +344,14 @@ isInside(pos, rect){
         });
 
         this.ctx.fillStyle = "#000000";
-        let playerImg = this.player.playerFrame();
+        let playerImg = this.player.getSprite();
         if (!this.player.facingRight) {
             this.ctx.save();
             this.ctx.scale(-1, 1);
             this.ctx.drawImage(playerImg, -Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
+                this.player.top(),
+                -this.player.width, this.player.height);
+            this.ctx.rect(-Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 -this.player.width, this.player.height);
             this.ctx.restore();
@@ -421,8 +461,12 @@ class Entity {
         this.vel = vel;
         this.width = width;
         this.height = height;
+        this.hasSprite = false;
         // does the entity move? false for static platforms 
         this.dynamic = dynamic;
+        this.hostile = false;
+        this.laser = false;
+        this._id = Math.floor(Math.random() * 10000000);
     }
 
     // returns side and point
@@ -515,11 +559,52 @@ class Sprite {
     }
 }
 
+class Enemy extends Entity {
+    constructor(pos, width, height, vel, dynamic = true) {
+        super(pos, width, height, vel, true);
+        this.facingRight = true;
+        this.laserCooldown = 100;
+        this.idleAnimation = new Sprite('enemy/finkle_idle', 2);
+        this.hasSprite = true;
+        this.hostile = true;
+    }
+
+    getSprite() {
+        return this.idleAnimation.getCurrentFrame();
+    }
+
+    // direction: vector pointing from enemy to player
+    createLaser(direction) {
+        let pos = this.pos.clone().add(direction.clone().multiplyScalar(2.5 + (this.width / 2)));
+
+        let laser = new Entity(pos, 5, 5, direction.clone().multiplyScalar(5), false)
+        laser.hostile = true;
+        
+        return laser;
+    }
+
+    update(player, entities) {
+        let direction = player.pos.clone().sub(this.pos).normalize();
+
+        if (direction.x >= 0) 
+            this.facingRight = true;
+        else
+            this.facingRight = false;
+
+        if (this.laserCooldown == 0) {
+            entities.push(this.createLaser(direction));
+            this.laserCooldown = 100;
+        }
+
+        this.laserCooldown--;
+    }
+
+}
+
 class Player extends Entity {
     constructor(pos, width, height, vel, dynamic = true) {
         super(pos, width, height, vel, dynamic);
         this._isJumping = false;
-        this.frameIndex = 0;
         this.facingRight = true;
         this.idleAnimation = new Sprite('player/idle', 4);
         this.runningAnimation = new Sprite('player/run', 6);
@@ -529,7 +614,7 @@ class Player extends Entity {
         this.stopping = false;
     }
 
-    playerFrame(ctx) {
+   getSprite(ctx) {
         if (this._isJumping)  {
             let anim = this.vel.y < 0 ? this.jumpAnimation : this.fallAnimation;
             return anim.getCurrentFrame();
