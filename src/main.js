@@ -420,7 +420,7 @@ isInside(pos, rect){
         }
 
 
-        var angle = Math.atan2(this.player.pos.y-this.mouseCoords.y, this.player.pos.x- this.camera.x + (this.width / 2)-this.mouseCoords.x)*Math.PI/180.0;//(this.player.pos.x - this.camera.x + (this.width / 2))-this.mouseCoords.x);
+        var angle = Math.atan2(this.player.pos.y-this.mouseCoords.y, this.player.pos.x- this.camera.x + (this.width / 2)-this.mouseCoords.x) * Math.PI/180;//(this.player.pos.x - this.camera.x + (this.width / 2))-this.mouseCoords.x);
         var direction = new THREE.Vector2(this.mouseCoords.x- (this.player.pos.x - this.camera.x + (this.width / 2)), this.mouseCoords.y-this.player.pos.y).normalize();
         this.direction = new THREE.Vector3(direction.x, direction.y, 0);
         var xCord = direction.x*30 + this.player.pos.x - this.camera.x + (this.width / 2) + 10;
@@ -428,18 +428,29 @@ isInside(pos, rect){
          var originX = this.player.pos.x - this.camera.x + (this.width / 2) + 10;
          this.ctx.beginPath();
             this.ctx.save();
-            var xComponent = Math.cos(angle) * (xCord-originX) - Math.sin(angle) * (yCord-this.player.pos.y) + originX;
-            var yComponent = Math.sin(angle) * (xCord-originX) + Math.cos(angle) * (yCord-this.player.pos.y) + this.player.pos.y;
+            var xComponent = this.xShift(angle, xCord, yCord, originX);
+            var yComponent = this.yShift(angle, xCord, yCord, originX);
             this.player.shield = {
                 x:xComponent,
                 y:yComponent,
-                x1:xComponent + 7*Math.cos(angle),
-                y1:yComponent - 7*Math.sin(angle),
-                x2:xComponent + Math.sin(angle)*this.player.height/4,
-                y2:yComponent + Math.cos(angle)*this.player.height/4,
-                x3:xComponent + 7*Math.cos(angle) + Math.sin(angle)*this.player.height/4,
-                y3:yComponent - 7*Math.sin(angle) + Math.cos(angle)*this.player.height/4
+                x1:this.xShift(angle, xCord + 7, yCord, originX),
+                y1:this.yShift(angle, xCord + 7, yCord, originX),
+                x2:this.xShift(angle, xCord, yCord + this.player.height/4, originX),
+                y2:this.yShift(angle, xCord, yCord + this.player.height/4, originX),
+                x3:this.xShift(angle, xCord + 7, yCord + this.player.height/4, originX),
+                y3:this.yShift(angle, xCord + 7, yCord + this.player.height/4, originX),
             }
+            // this.player.shield = {
+            //     x:this.rotateX(shield.x, shield.y, angle/(Math.PI/180.0)),
+            //     y:this.rotateY(shield.x, shield.y, angle/(Math.PI/180.0)),
+            //     x1:this.rotateX(shield.x1, shield.y1, angle/(Math.PI/180.0)),
+            //     y1:this.rotateY(shield.x1, shield.y1, angle/(Math.PI/180.0)),
+            //     x2:this.rotateX(shield.x2, shield.y2, angle/(Math.PI/180.0)),
+            //     y2:this.rotateY(shield.x2, shield.y2, angle/(Math.PI/180.0)),
+            //     x3:this.rotateX(shield.x3, shield.y3, angle/(Math.PI/180.0)),
+            //     y3:this.rotateY(shield.x3, shield.y3, angle/(Math.PI/180.0)),
+            // }
+            // console.log(this.player.shield);
             this.ctx.translate(xComponent, yComponent);
             this.ctx.rotate(angle/(Math.PI/180.0));
             //this.ctx.fillRect(0,0,7, this.player.height/4);
@@ -447,10 +458,10 @@ isInside(pos, rect){
             this.ctx.restore();
 
             this.ctx.beginPath();
-            this.ctx.fillRect(xComponent, yComponent, 1, 1);
-            this.ctx.fillRect(xComponent + 7*Math.cos(angle), yComponent - 7*Math.sin(angle), 1, 1);
-            this.ctx.fillRect(xComponent + Math.sin(angle)*this.player.height/4, yComponent + Math.cos(angle)*this.player.height/4, 1, 1);
-            this.ctx.fillRect(xComponent + 7*Math.cos(angle) + Math.sin(angle)*this.player.height/4, yComponent - 7*Math.sin(angle) + Math.cos(angle)*this.player.height/4, 1, 1);
+            this.ctx.fillRect(this.player.shield.x, this.player.shield.y, 1, 1);
+            this.ctx.fillRect(this.player.shield.x1, this.player.shield.y1, 1, 1);
+            this.ctx.fillRect(this.player.shield.x2, this.player.shield.y2, 1, 1);
+            this.ctx.fillRect(this.player.shield.x3, this.player.shield.y3, 1, 1);
             this.ctx.stroke();
         // friction bubbles
         if(!this.player.isFalling() && !this.player.isJumping()) {
@@ -542,6 +553,22 @@ isInside(pos, rect){
         while(v === 0) v = Math.random();
         return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
     }
+
+    xShift(angle, xCord, yCord, originX){
+        return Math.cos(angle) * (xCord-originX) - Math.sin(angle) * (yCord-this.player.pos.y) + originX;
+    }
+
+    yShift(angle, xCord, yCord, originX){
+        return Math.sin(angle) * (xCord-originX) + Math.cos(angle) * (yCord-this.player.pos.y) + this.player.pos.y;
+    }
+
+    rotateX(x, y, angle) {
+        return x*Math.cos(angle) - y*Math.sin(angle);
+    }
+
+    rotateY(x, y, angle) {
+        return x*Math.cos(angle) + y*Math.sin(angle);
+    }
     
 }
 
@@ -624,6 +651,22 @@ class Entity {
 
     left() {
         return Math.round(this.pos.x - (this.width / 2)+10);
+    }
+
+    rightLaser() {
+        return Math.round(this.pos.x + this.width);
+    }
+
+    leftLaser() {
+        return this.pos.x;
+    }
+
+    topLaser() {
+        return this.pos.y;
+    }
+
+    bottomLaser() {
+        return this.pos.y + this.height;
     }
 
     getNextInPath() {
@@ -765,27 +808,58 @@ class Player extends Entity {
         if(!e.laser) {
             return undefined;
         }
+
+        var connect = false;
+        // let next = this.vel.clone().multiplyScalar(delta_t);
+        // //console.log(this.shield.x3);
+        // if (this.shield.x3 + next.x > e.leftLaser() && this.shield.x + next.x < e.rightLaser()
+        //     && this.shield.y3 > e.topLaser() && this.shield.y < e.bottomLaser())
+        // {
+        //    connect = true;
+        // }
+        // if (this.shield.x3 > e.leftLaser() && this.shield.x < e.rightLaser()) {
+        //     if( this.shield.y3 + next.y > e.topLaser() && this.shield.y + next.y < e.bottomLaser())
+        //     {
+        //         connect = true;
+        //     }
+        // }
+        // if(connect) {
+        //      e.vel = e.vel.reflect(game_g.direction);
+        //      e.pos.x = 50;
+        //     return true;
+        // }
+        // return undefined;
+
+
         // console.log(this.shield);
         // console.log(e.pos);
-        var connect = false
-        let next = this.vel.clone().multiplyScalar(delta_t);
-        // console.log(this.shield.x3);
+       
+
         // console.log(e.left());
         // console.log(e.bottom())
         // console.log(this.shield.y);
         // console.log(this.shield.y < e.bottom());
-        console.log(this.shield.x3 > e.left() && this.shield.x < e.right());
-        if(this.shield.x3 > e.left() && this.shield.x < e.right() &&
-            this.shield.y3 > e.top() && this.shield.y < e.bottom()) {
-            console.log('hi');
+        // console.log(this.shield.x3);
+        // console.log(this.shield.x);
+        // //console.log(this.shield.x3 > e.left() && this.shield.x < e.right());
+        if(this.shield.x3 > e.leftLaser() - game_g.camera.x + (game_g.width / 2) && this.shield.x < e.rightLaser() - game_g.camera.x + (game_g.width / 2) &&
+            this.shield.y3 > e.topLaser() && this.shield.y < e.bottomLaser()) {
+            console.log(this.shield.x3);
+             console.log(this.shield.x);
+             console.log(e.pos.x);
+             console.log(this.pos.x);
+            //console.log('hi');
             e.vel = e.vel.reflect(game_g.direction);
-            connect = true;
-        }
-        if(connect) {
-            e.vel = e.vel.reflect(game_g.direction);
+            e.pos = e.pos.add(e.vel);
+            //e.pos.x = this.shield.x3;
             return true;
         }
-        return undefined;
+        // // if(connect) {
+        // //     e.vel = game_g.direction.reflect(e.vel);
+        // //     e.pos.x = 50;
+        // //     return true;
+        // // }
+        // return undefined;
     }
 
    getSprite(ctx) {
