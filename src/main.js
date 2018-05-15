@@ -43,7 +43,7 @@ class Game {
         this.currentTime = new Date();
         this.lives = 3;
         this.direction = new THREE.Vector3(0, 0, 0);
-        this.level = 0;
+        this.level = 4;
         this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
@@ -68,6 +68,10 @@ class Game {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
+            if (p.path !== undefined) {
+                p.path.forEach(path => platform.addToPath(new THREE.Vector3(path.x * this.width, path.y * this.height)));
+                if (p.speed) platform.speed = p.speed;
+            }
             this.entities.push(platform);
         });
 
@@ -247,7 +251,7 @@ class Game {
                 } 
 
                 if (entity.dynamic == true) {
-                    if (e._id != entity._id) {
+                    if (e._id != entity._id && !e.laser) {
                         let normal = entity.detectCollison(e, delta_t);
                         if (normal !== undefined) entity.resolveCollision(e, delta_t, normal);
                     }
@@ -624,7 +628,7 @@ class Entity {
         if (normal.x == 0) {
             this.vel.setY(0);
             if (normal.y > 0)
-                this.pos.setY(Math.floor(this.pos.y - (this.bottom() - e.top()))); 
+                this.pos.setY(Math.floor(e.top() - 1 - this.height / 2)); 
             else
                 this.pos.setY(Math.ceil(this.pos.y + (e.bottom() - this.top()))); 
         } else {
@@ -676,13 +680,13 @@ class Entity {
     }
 
     updatePath() {
-        let direction = this.getNextInPath().sub(this.pos);
-        if (direction.length() < 0.3) {
+        let next = this.getNextInPath();
+        if (this.pos.distanceTo(next) < 0.3) {
             this.nextInPath++;
             return;
         }
-        direction.normalize();
-        this.vel = direction.multiplyScalar(this.speed);
+        next.sub(this.pos).normalize();
+        this.vel = next.multiplyScalar(this.speed);
     }
 
     addToPath(p) { this.path.push(p); }
