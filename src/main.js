@@ -169,7 +169,7 @@ class Game {
             this.player.jump(this.height);
         }
 
-        if(this.downPressed == true) {
+        if(this.downPressed == true && this.player.currentPlatform == undefined) {
             playerMovement.setComponent(1, playerMovement.y+75);
         }
 
@@ -200,6 +200,9 @@ class Game {
             this.player.stopping = false;
 
         force.add(playerMovement);
+        this.player.applyForce(force, delta_t);
+        this.player.updatePosition(this.width, this.height, delta_t);
+
         this.entities.forEach(entity => {
             if (entity instanceof Enemy) {
                 entity.update(this.player, this.entities);
@@ -255,8 +258,6 @@ class Game {
             this.takesDamage();
         }
 
-        this.player.applyForce(force, delta_t);
-        this.player.updatePosition(this.width, this.height, delta_t);
         this.updateCamera();
     }
 
@@ -527,7 +528,7 @@ class Entity {
         this.path = [pos.clone()];
         this.nextInPath = 0;
         this.speed = 10;
-        this.currentPlaform = undefined;
+        this.currentPlatform = undefined;
         // @hack this will fail every once in a while. Probably not though.
         this._id = Math.floor(Math.random() * 10000000);
     }
@@ -565,16 +566,19 @@ class Entity {
             e.vel = e.vel.reflect(game_g.direction);
         }
         this.falling = false;
-        this.vel.projectOnPlane(normal);
-        let offsets = new THREE.Vector3( 
-            normal.x > 0 ? (this.left() - e.right()) : (this.right() - e.left()),
-            normal.y > 0 ? (this.bottom() - e.top()) : (this.top() - e.bottom()) 
-        );
-        offsets.multiply(normal);
-        this.pos.sub(offsets);
-        if (Math.abs(normal.x) > Math.abs(normal.y)) this.pos.setX(Math.round(this.pos.x));
-        else this.pos.setY(Math.round(this.pos.y));
-
+        if (normal.x == 0) {
+            this.vel.setY(0);
+            if (normal.y > 0)
+                this.pos.setY(Math.floor(this.pos.y - (this.bottom() - e.top()))); 
+            else
+                this.pos.setY(Math.ceil(this.pos.y + (e.bottom() - this.top()))); 
+        } else {
+            this.vel.setX(0);
+            if (normal.x < 0)
+                this.pos.setX(Math.floor(this.pos.x - (this.right() - e.left()))); 
+            else
+                this.pos.setX(Math.ceil(this.pos.x + (e.right() - this.left()))); 
+        }
         this.currentPlatform = e;
     }
 
@@ -614,7 +618,7 @@ class Entity {
 
     updatePosition(width, height, delta_t) {
         if (this.currentPlatform !== undefined) {
-            this.pos.add(this.currentPlatform.vel.clone().multiplyScalar(delta_t));
+           this.pos.add(this.currentPlatform.vel.clone().multiplyScalar(delta_t));
         }
         this.pos.add(this.vel.clone().multiplyScalar(delta_t));
     }
@@ -716,7 +720,6 @@ class Player extends Entity {
         this.fallAnimation = new Sprite('player/fall', 1);
         this.falling = true;
         this.stopping = false;
-        this.currentPlaform = undefined;
     }
 
    getSprite(ctx) {
@@ -752,7 +755,7 @@ class Player extends Entity {
 
     jump(screenHeight) {
         if (this._isJumping) return;
-        this.currentPlaform = undefined;
+        this.currentPlatform = undefined;
         
         this._isJumping = true;
         this.vel.setY(-0.1 * screenHeight);
