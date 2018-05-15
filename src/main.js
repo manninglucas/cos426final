@@ -42,6 +42,7 @@ class Game {
         this.leftPressed = false;
         this.currentTime = new Date();
         this.lives = 3;
+        this.gameOver = false;
         this.direction = new THREE.Vector3(0, 0, 0);
         this.level = 0;
         this.levels = levels;
@@ -114,6 +115,7 @@ class Game {
     }
 
     loadLevel() {
+        this.gameOver = false;
         const levelData = this.levels[this.level];
 
         this.backgroundImage.src = levelData.backgroundImage;
@@ -165,6 +167,7 @@ class Game {
     }
 
     update(delta_t) {
+        if (this.gameOver) return;
         var force = new THREE.Vector3(0, 0);
         force.add(this.gravity);
 
@@ -248,7 +251,7 @@ class Game {
             this.entities.forEach(e => {
                 let normal = this.player.shieldCollision(e, delta_t);
                // console.log(normal);
-                if (normal === undefined) {
+                if (normal == undefined) {
                     normal = this.player.detectCollison(e, delta_t);
                     if (normal !== undefined) {
                         this.player.resolveCollision(e, delta_t, normal);
@@ -293,10 +296,13 @@ class Game {
     }
 
     takesDamage (){
-        this.lives--;
-        if(this.lives!==0)
+        if(this.lives > 0) {
+            this.lives--;
             if(this.level !== this.levels.length)
                 this.loadLevel();
+            if (this.lives == 0)
+                this.gameOver = true;
+        }
     }
 
     // need to use a good detection scheme, ideally one that has better than
