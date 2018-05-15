@@ -5,12 +5,12 @@ let levels = [
                 "x" : 0.75,
                 "y" : 0.9,
                 "width" : 1.5,
-                "height" : 0.05
+                "height" : 0.05,
             },
         ],
 
         "enemies" : [
-            //{"x" : 0.5, "y" : 0.5}           
+            {"x" : 0.5, "y" : 0.5, "minX" : 0.4, "maxX" : 0.6}           
         ],
 
         "spikes" : [
@@ -35,7 +35,10 @@ let levels = [
                 "x" : .7,
                 "y" : 0.9,
                 "width" : .4,
-                "height" : 0.05
+                "height" : 0.05,
+                "path" : [
+                    {"x" : 0.7, "y" : 1}
+                ]
             }
         ],
 
