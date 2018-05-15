@@ -95,6 +95,8 @@ class Game {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
+            if (p.path !== undefined)
+                p.path.forEach(path => platform.addToPath(new THREE.Vector3(path.x * this.width, path.y * this.height)));
             this.entities.push(platform);
         });
 
@@ -196,6 +198,8 @@ class Game {
             if (entity instanceof Enemy) {
                 entity.update(this.player, this.entities);
             }
+
+            if (entity.dynamic == false && entity.laser == false) entity.updatePath();
 
             if (entity.dynamic === true) {
                 // these two calls are very parallelizable. Multithreaded?
@@ -492,6 +496,10 @@ class Entity {
         this.dynamic = dynamic;
         this.hostile = false;
         this.laser = false;
+        this.path = [pos.clone()];
+        this.nextInPath = 0;
+        this.speed = 10;
+        this.currentPlaform = undefined;
         // @hack this will fail every once in a while. Probably not though.
         this._id = Math.floor(Math.random() * 10000000);
     }
@@ -519,6 +527,7 @@ class Entity {
                 }
             }
         }
+
         return undefined;
     }
 
@@ -533,6 +542,8 @@ class Entity {
         this.pos.sub(offsets);
         if (Math.abs(normal.x) > Math.abs(normal.y)) this.pos.setX(Math.round(this.pos.x));
         else this.pos.setY(Math.round(this.pos.y));
+
+        this.currentPlatform = e;
     }
 
     top() {
@@ -551,7 +562,28 @@ class Entity {
         return Math.round(this.pos.x - (this.width / 2)+10);
     }
 
+    getNextInPath() {
+        if (this.nextInPath == this.path.length)
+            this.nextInPath = 0;
+        return this.path[this.nextInPath].clone();
+    }
+
+    updatePath() {
+        let direction = this.getNextInPath().sub(this.pos);
+        if (direction.length() < 0.3) {
+            this.nextInPath++;
+            return;
+        }
+        direction.normalize();
+        this.vel = direction.multiplyScalar(this.speed);
+    }
+
+    addToPath(p) { this.path.push(p); }
+
     updatePosition(width, height, delta_t) {
+        if (this.currentPlatform !== undefined) {
+            this.pos.add(this.currentPlatform.vel.clone().multiplyScalar(delta_t));
+        }
         this.pos.add(this.vel.clone().multiplyScalar(delta_t));
     }
 
@@ -652,6 +684,7 @@ class Player extends Entity {
         this.fallAnimation = new Sprite('player/fall', 1);
         this.falling = true;
         this.stopping = false;
+        this.currentPlaform = undefined;
     }
 
    getSprite(ctx) {
@@ -687,6 +720,7 @@ class Player extends Entity {
 
     jump(screenHeight) {
         if (this._isJumping) return;
+        this.currentPlaform = undefined;
         
         this._isJumping = true;
         this.vel.setY(-0.1 * screenHeight);
