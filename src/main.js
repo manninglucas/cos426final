@@ -43,7 +43,7 @@ class Game {
         this.currentTime = new Date();
         this.lives = 3;
         this.direction = new THREE.Vector3(0, 0, 0);
-        this.level = 4;
+        this.level = 2;
         this.levels = levels;
         this.submitted = false;
         this.startTime=new Date();
