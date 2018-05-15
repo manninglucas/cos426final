@@ -76,7 +76,7 @@ class Game {
         levelData.enemies.forEach(e => {
             let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
             let enemy = new Enemy(pos, 64, 64, 
-                new THREE.Vector3(0,0));
+                new THREE.Vector3(0,0), e.minX * this.width, e.maxX * this.width);
             this.entities.push(enemy);
         });
 
@@ -102,7 +102,7 @@ class Game {
         levelData.enemies.forEach(e => {
             let pos = new THREE.Vector3(e.x * this.width, e.y * this.height);
             let enemy = new Enemy(pos, 64, 64, 
-                new THREE.Vector3(0,0));
+                new THREE.Vector3(0,0), e.minX * this.width, e.maxX * this.width);
             this.entities.push(enemy);
         });
 
@@ -158,7 +158,7 @@ class Game {
         }
 
         if(this.upPressed == true) {
-            this.player.jump();
+            this.player.jump(this.height);
         }
 
         if(this.downPressed == true) {
@@ -207,7 +207,10 @@ class Game {
 
             this.entities.forEach(e => {
                 let normal = this.player.detectCollison(e, delta_t);
-                if (normal !== undefined) this.player.resolveCollision(e, delta_t, normal);
+                if (normal !== undefined) {
+                    this.player.resolveCollision(e, delta_t, normal);
+                    if (e.hostile) this.takesDamage();
+                } 
 
                 if (entity.dynamic == true) {
                     if (e._id != entity._id) {
@@ -238,7 +241,7 @@ class Game {
             }
         }
 
-        if(this.player.pos.y > this.height+this.player.height/2 && this.lives !==0) {
+        if(this.player.bottom() > this.height && this.lives !==0) {
             this.takesDamage();
         }
 
@@ -325,11 +328,21 @@ isInside(pos, rect){
         this.ctx.drawImage(this.goalImg, Math.round(this.submitButton.left() - (this.camera.x) + (this.width / 2)),
              this.submitButton.top());
         
+        this.ctx.filter = 'none';
         this.entities.forEach(entity => {
             this.ctx.fillStyle = "#0095DD";
             if (entity.hasSprite) {
-                this.ctx.drawImage(entity.getSprite(), Math.round(entity.left() - (this.camera.x) + (this.width / 2)),
-                    entity.top(), entity.width, entity.height);
+                if (entity.facingRight) {
+                    this.ctx.save();
+                    this.ctx.scale(-1, 1);
+                    this.ctx.drawImage(entity.getSprite(), -Math.round(entity.left() - this.camera.x + (this.width / 2)), 
+                        entity.top(),
+                        -entity.width, entity.height);
+                    this.ctx.restore();
+                } else {
+                    this.ctx.drawImage(entity.getSprite(), Math.round(entity.left() - (this.camera.x) + (this.width / 2)),
+                        entity.top(), entity.width, entity.height);
+                }
             } else {
                 if (entity.laser){
                     this.ctx.fillStyle = "#FF0000";
@@ -354,6 +367,7 @@ isInside(pos, rect){
                 spike.top(), 
                 spike.width, spike.height);
         });
+        this.ctx.filter = 'none';
 
         this.ctx.fillStyle = "#000000";
         let playerImg = this.player.getSprite();
@@ -379,7 +393,7 @@ isInside(pos, rect){
                     this.ctx.beginPath();
                     var angle = Math.random()*Math.PI/4;
                     if(this.player.vel.x > 0 && this.leftPressed) {
-                        this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                        this.ctx.arc(this.player.right() - this.camera.x + (this.width / 2) 
                         + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
                          Math.random() * 2, 0, 2 * Math.PI);
                     }
@@ -389,7 +403,7 @@ isInside(pos, rect){
                         Math.random() * 2, 0, 2 * Math.PI);
                     } else if (this.downPressed && Math.abs(this.player.vel.x) > 5) {
                         if (this.player.vel.x < 0) {
-                            this.ctx.arc(this.player.pos.x - this.camera.x + (this.width / 2) 
+                            this.ctx.arc(this.player.right() - this.camera.x + (this.width / 2) 
                             + 30*Math.random()*Math.cos(angle), this.player.bottom() - 30*Math.random()*Math.sin(angle),
                             Math.random() * 2, 0, 2 * Math.PI);
                         } else if (this.player.vel.x > 0) {
@@ -478,6 +492,7 @@ class Entity {
         this.dynamic = dynamic;
         this.hostile = false;
         this.laser = false;
+        // @hack this will fail every once in a while. Probably not though.
         this._id = Math.floor(Math.random() * 10000000);
     }
 
@@ -572,18 +587,21 @@ class Sprite {
 }
 
 class Enemy extends Entity {
-    constructor(pos, width, height, vel, dynamic = true) {
+    constructor(pos, width, height, vel, minX, maxX) {
         super(pos, width, height, vel, true);
         this.facingRight = true;
-        this.laserCooldown = 100;
+        this.laserCooldown = 300;
         this.idleAnimation = new Sprite('enemy/finkle_idle', 1);
         this.shootAnimation = new Sprite('enemy/finkle_shoot', 1);
         this.hasSprite = true;
         this.hostile = true;
+        this.minX = minX;
+        this.maxX = maxX;
+        this.vel.setX(15);
     }
 
     getSprite() {
-        if (this.laserCooldown > 10)
+        if (this.laserCooldown > 5 && this.laserCooldown < 295)
             return this.idleAnimation.getCurrentFrame();
         else
             return this.shootAnimation.getCurrentFrame();
@@ -593,7 +611,7 @@ class Enemy extends Entity {
     createLaser(direction) {
         let pos = this.pos.clone().add(direction.clone().multiplyScalar(20 + (this.width / 2)));
 
-        let laser = new Entity(pos, 20, 5, direction.clone().multiplyScalar(20), false)
+        let laser = new Entity(pos, 20, 5, direction.clone().multiplyScalar(50), false)
         laser.hostile = true;
         
         let angle = Math.atan2(direction.y, direction.x);
@@ -613,8 +631,10 @@ class Enemy extends Entity {
 
         if (this.laserCooldown == 0) {
             entities.push(this.createLaser(direction));
-            this.laserCooldown = 100;
+            this.laserCooldown = 300;
         }
+        if (this.pos.x <= this.minX) this.vel.setX(15);
+        if (this.pos.x >= this.maxX) this.vel.setX(-15);
 
         this.laserCooldown--;
     }
@@ -665,11 +685,11 @@ class Player extends Entity {
     
     isJumping() { return this._isJumping; }
 
-    jump() {
+    jump(screenHeight) {
         if (this._isJumping) return;
         
         this._isJumping = true;
-        this.vel.setY(-50);
+        this.vel.setY(-0.1 * screenHeight);
     }
 
     detectCollison(e, delta_t) {
@@ -718,6 +738,5 @@ function loadGame(levels) {
 
 window.onload = function() {
     console.log('loading');
-    //fetch('src/levels.json').then(resp => resp.json()).then((response) => loadGame(response));
     loadGame(levels);
 };
