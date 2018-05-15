@@ -36,7 +36,6 @@ class Game {
             x: 0,
             y: 0
         };
-        this.shield;
         this.upPressed = false;
         this.downPressed = false;
         this.rightPressed = false;
@@ -89,6 +88,24 @@ class Game {
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
             levelData.playerStart.y * this.height);
         this.player = new Player(pos, 64, 64, new THREE.Vector3());
+        var angle = Math.atan2(this.player.pos.y-this.mouseCoords.y, this.player.pos.x- this.camera.x + (this.width / 2)-this.mouseCoords.x)*Math.PI/180.0;//(this.player.pos.x - this.camera.x + (this.width / 2))-this.mouseCoords.x);
+        var direction = new THREE.Vector2(this.mouseCoords.x- (this.player.pos.x - this.camera.x + (this.width / 2)), this.mouseCoords.y-this.player.pos.y).normalize();
+        this.direction = new THREE.Vector3(direction.x, direction.y, 0);
+        var xCord = direction.x*30 + this.player.pos.x - this.camera.x + (this.width / 2) + 10;
+         var yCord = direction.y*30 + this.player.pos.y+5;
+         var originX = this.player.pos.x - this.camera.x + (this.width / 2) + 10;
+            var xComponent = Math.cos(angle) * (xCord-originX) - Math.sin(angle) * (yCord-this.player.pos.y) + originX;
+            var yComponent = Math.sin(angle) * (xCord-originX) + Math.cos(angle) * (yCord-this.player.pos.y) + this.player.pos.y;
+            this.player.shield = {
+               x:xComponent,
+                y:yComponent,
+                x1:xComponent + 7*Math.cos(angle),
+                y1:yComponent - 7*Math.sin(angle),
+                x2:xComponent + Math.sin(angle)*this.player.height/4,
+                y2:yComponent + Math.cos(angle)*this.player.height/4,
+                x3:xComponent + 7*Math.cos(angle) + Math.sin(angle)*this.player.height/4,
+                y3:yComponent - 7*Math.sin(angle) + Math.cos(angle)*this.player.height/4
+        }
         this.gravity = new THREE.Vector3(0, 20);
     }
 
@@ -219,10 +236,14 @@ class Game {
             entity.updatePosition(this.width, this.height, delta_t);
 
             this.entities.forEach(e => {
-                let normal = this.player.detectCollison(e, delta_t);
-                if (normal !== undefined) {
-                    this.player.resolveCollision(e, delta_t, normal);
-                    //if (e.hostile) this.takesDamage();
+                let normal = this.player.shieldCollision(e, delta_t);
+               // console.log(normal);
+                if (normal === undefined) {
+                    normal = this.player.detectCollison(e, delta_t);
+                    if (normal !== undefined) {
+                        this.player.resolveCollision(e, delta_t, normal);
+                        if (e.hostile) this.takesDamage();
+                    } 
                 } 
 
                 if (entity.dynamic == true) {
@@ -331,6 +352,7 @@ isInside(pos, rect){
 
 
 
+
     draw() {
         //this.ctx.clearRect(0, 0, this.width, this.height);
         this.ctx.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
@@ -408,18 +430,28 @@ isInside(pos, rect){
             this.ctx.save();
             var xComponent = Math.cos(angle) * (xCord-originX) - Math.sin(angle) * (yCord-this.player.pos.y) + originX;
             var yComponent = Math.sin(angle) * (xCord-originX) + Math.cos(angle) * (yCord-this.player.pos.y) + this.player.pos.y;
-            this.shield = {
+            this.player.shield = {
                 x:xComponent,
                 y:yComponent,
-                width:7,
-                height:this.player.height/4
+                x1:xComponent + 7*Math.cos(angle),
+                y1:yComponent - 7*Math.sin(angle),
+                x2:xComponent + Math.sin(angle)*this.player.height/4,
+                y2:yComponent + Math.cos(angle)*this.player.height/4,
+                x3:xComponent + 7*Math.cos(angle) + Math.sin(angle)*this.player.height/4,
+                y3:yComponent - 7*Math.sin(angle) + Math.cos(angle)*this.player.height/4
             }
             this.ctx.translate(xComponent, yComponent);
             this.ctx.rotate(angle/(Math.PI/180.0));
-            this.ctx.fillRect(0,0,7, this.player.height/4);
+            //this.ctx.fillRect(0,0,7, this.player.height/4);
             this.ctx.stroke();
             this.ctx.restore();
 
+            this.ctx.beginPath();
+            this.ctx.fillRect(xComponent, yComponent, 1, 1);
+            this.ctx.fillRect(xComponent + 7*Math.cos(angle), yComponent - 7*Math.sin(angle), 1, 1);
+            this.ctx.fillRect(xComponent + Math.sin(angle)*this.player.height/4, yComponent + Math.cos(angle)*this.player.height/4, 1, 1);
+            this.ctx.fillRect(xComponent + 7*Math.cos(angle) + Math.sin(angle)*this.player.height/4, yComponent - 7*Math.sin(angle) + Math.cos(angle)*this.player.height/4, 1, 1);
+            this.ctx.stroke();
         // friction bubbles
         if(!this.player.isFalling() && !this.player.isJumping()) {
                 for(var i = 0; i < 25; i++) {
@@ -561,10 +593,6 @@ class Entity {
     }
 
     resolveCollision(e, delta_t, normal) {
-        if(e.laser) {
-            console.log(e.vel);
-            e.vel = e.vel.reflect(game_g.direction);
-        }
         this.falling = false;
         if (normal.x == 0) {
             this.vel.setY(0);
@@ -720,6 +748,44 @@ class Player extends Entity {
         this.fallAnimation = new Sprite('player/fall', 1);
         this.falling = true;
         this.stopping = false;
+        this.shield;
+        // this.shield = {
+        //     x:this.pos.x+50,
+        //     y:this.pos.y-20,
+        //     x1:this.pos.x+57,
+        //     y1:this.pos.y-20,
+        //     x2:this.pos.x+50,
+        //     y2:this.pos.y + 40,
+        //     x3:this.pos.x+57,
+        //     y3:this.pos.y + 40,
+        // };
+    }
+
+    shieldCollision(e, delta_t) {
+        if(!e.laser) {
+            return undefined;
+        }
+        // console.log(this.shield);
+        // console.log(e.pos);
+        var connect = false
+        let next = this.vel.clone().multiplyScalar(delta_t);
+        // console.log(this.shield.x3);
+        // console.log(e.left());
+        // console.log(e.bottom())
+        // console.log(this.shield.y);
+        // console.log(this.shield.y < e.bottom());
+        console.log(this.shield.x3 > e.left() && this.shield.x < e.right());
+        if(this.shield.x3 > e.left() && this.shield.x < e.right() &&
+            this.shield.y3 > e.top() && this.shield.y < e.bottom()) {
+            console.log('hi');
+            e.vel = e.vel.reflect(game_g.direction);
+            connect = true;
+        }
+        if(connect) {
+            e.vel = e.vel.reflect(game_g.direction);
+            return true;
+        }
+        return undefined;
     }
 
    getSprite(ctx) {
