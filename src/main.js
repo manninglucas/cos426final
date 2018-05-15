@@ -32,6 +32,10 @@ class Game {
             width:100,
             height:50
         };
+        this.mouseCoords = {
+            x: 0,
+            y: 0
+        }
         this.upPressed = false;
         this.downPressed = false;
         this.rightPressed = false;
@@ -345,13 +349,12 @@ isInside(pos, rect){
 
         this.ctx.fillStyle = "#000000";
         let playerImg = this.player.getSprite();
+
+
         if (!this.player.facingRight) {
             this.ctx.save();
             this.ctx.scale(-1, 1);
             this.ctx.drawImage(playerImg, -Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
-                this.player.top(),
-                -this.player.width, this.player.height);
-            this.ctx.rect(-Math.round(this.player.left() - this.camera.x + (this.width / 2)), 
                 this.player.top(),
                 -this.player.width, this.player.height);
             this.ctx.restore();
@@ -360,6 +363,20 @@ isInside(pos, rect){
                 this.player.top(),
                 this.player.width, this.player.height);
         }
+
+
+        var angle = Math.atan2(this.player.pos.y-this.mouseCoords.y, this.player.pos.x- this.camera.x + (this.width / 2)-this.mouseCoords.x)*Math.PI/180.0;//(this.player.pos.x - this.camera.x + (this.width / 2))-this.mouseCoords.x);
+        var direction = new THREE.Vector2(this.mouseCoords.x- (this.player.pos.x - this.camera.x + (this.width / 2)), this.mouseCoords.y-this.player.pos.y).normalize();
+        var xCord = direction.x*30 + this.player.pos.x - this.camera.x + (this.width / 2) + 10;
+         var yCord = direction.y*40 + this.player.pos.y+10;
+         var originX = this.player.pos.x - this.camera.x + (this.width / 2) + 10;
+         this.ctx.beginPath();
+            this.ctx.save();
+            this.ctx.translate(Math.cos(angle) * (xCord-originX) - Math.sin(angle) * (yCord-this.player.pos.y) + originX, Math.sin(angle) * (xCord-originX) + Math.cos(angle) * (yCord-this.player.pos.y) + this.player.pos.y);
+            this.ctx.rotate(angle/(Math.PI/180.0));
+            this.ctx.fillRect(0,0,7, this.player.height/4);
+            this.ctx.stroke();
+            this.ctx.restore();
 
         // friction bubbles
         if(!this.player.isFalling() && !this.player.isJumping()) {
@@ -688,6 +705,10 @@ function loadGame(levels) {
         game_g.loadLevel();
     }  
 }, false);
+    document.addEventListener("mousemove", (e) => 
+        {var mousePos =game_g.getMousePos(canvas, e)
+            game_g.mouseCoords = mousePos;
+        });
     setTimeout(function run() {
         game_g.update(1 / UPDATE_TICK_RATE);
         setTimeout(run, UPDATE_TICK_RATE);
