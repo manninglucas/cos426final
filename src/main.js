@@ -42,6 +42,7 @@ class Game {
         this.leftPressed = false;
         this.currentTime = new Date();
         this.lives = 3;
+        this.gameOver = false;
         this.direction = new THREE.Vector3(0, 0, 0);
         this.level = 0;
         this.levels = levels;
@@ -96,6 +97,7 @@ class Game {
     }
 
     loadLevel() {
+        this.gameOver = false;
         const levelData = this.levels[this.level];
 
         this.backgroundImage.src = levelData.backgroundImage;
@@ -104,8 +106,10 @@ class Game {
             let pos = new THREE.Vector3(p.x * this.width, p.y * this.height);
             let platform = new Entity(pos, Math.round(p.width * this.width), Math.round(p.height * this.height), 
                 new THREE.Vector3(0,0), false);
-            if (p.path !== undefined)
+            if (p.path !== undefined) {
                 p.path.forEach(path => platform.addToPath(new THREE.Vector3(path.x * this.width, path.y * this.height)));
+                if (p.speed) platform.speed = p.speed;
+            }
             this.entities.push(platform);
         });
 
@@ -128,6 +132,10 @@ class Game {
         let pos = new THREE.Vector3(levelData.playerStart.x * this.width, 
             levelData.playerStart.y * this.height);
         this.player = new Player(pos, 64, 64, new THREE.Vector3());
+        
+        let goalpos = new THREE.Vector3(levelData.submitLocation.x * this.width, levelData.submitLocation.y * this.height);
+        this.submitButton = new Entity(goalpos,
+            380, 48, new THREE.Vector3, false);
     }
 
     updateCamera() {
@@ -141,6 +149,7 @@ class Game {
     }
 
     update(delta_t) {
+        if (this.gameOver) return;
         var force = new THREE.Vector3(0, 0);
         force.add(this.gravity);
 
@@ -224,7 +233,7 @@ class Game {
             this.entities.forEach(e => {
                 let normal = this.player.shieldCollision(e, delta_t);
                // console.log(normal);
-                if (normal === undefined) {
+                if (normal == undefined) {
                     normal = this.player.detectCollison(e, delta_t);
                     if (normal !== undefined) {
                         this.player.resolveCollision(e, delta_t, normal);
@@ -269,10 +278,13 @@ class Game {
     }
 
     takesDamage (){
-        this.lives--;
-        if(this.lives!==0)
+        if(this.lives > 0) {
+            this.lives--;
             if(this.level !== this.levels.length)
                 this.loadLevel();
+            if (this.lives == 0)
+                this.gameOver = true;
+        }
     }
 
     // need to use a good detection scheme, ideally one that has better than
