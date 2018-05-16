@@ -438,34 +438,15 @@ isInside(pos, rect){
                 x3:this.xShift(angle, xCord + 7, yCord + this.player.height/4, originX),
                 y3:this.yShift(angle, xCord + 7, yCord + this.player.height/4, originX),
             }
-            // this.player.shield = {
-            //     x:this.rotateX(shield.x, shield.y, angle/(Math.PI/180.0)),
-            //     y:this.rotateY(shield.x, shield.y, angle/(Math.PI/180.0)),
-            //     x1:this.rotateX(shield.x1, shield.y1, angle/(Math.PI/180.0)),
-            //     y1:this.rotateY(shield.x1, shield.y1, angle/(Math.PI/180.0)),
-            //     x2:this.rotateX(shield.x2, shield.y2, angle/(Math.PI/180.0)),
-            //     y2:this.rotateY(shield.x2, shield.y2, angle/(Math.PI/180.0)),
-            //     x3:this.rotateX(shield.x3, shield.y3, angle/(Math.PI/180.0)),
-            //     y3:this.rotateY(shield.x3, shield.y3, angle/(Math.PI/180.0)),
-            // }
-            // console.log(this.player.shield);
-            if(direction.y<.5 && direction.y>-.5) {
+        if(direction.y<.5 && direction.y>-.5) {
             if(this.mouseCoords.x > this.player.pos.x - this.camera.x + (this.width / 2))
-            this.ctx.translate(xComponent+7, yComponent + this.player.height/4);
+                this.ctx.translate(xComponent+7, yComponent + this.player.height/4);
             else
-            this.ctx.translate(xComponent, yComponent);
+                this.ctx.translate(xComponent, yComponent);
             this.ctx.rotate(angle/(Math.PI/180.0));
             this.ctx.fillRect(0,0,7, this.player.height/4);
             this.ctx.stroke();
             this.ctx.restore();
-
-            // this.ctx.beginPath();
-            // this.ctx.fillRect(this.player.shield.x,this.player.shield.y,7, this.player.height/4);
-            // this.ctx.fillRect(this.player.shield.x, this.player.shield.y, 1, 1);
-            // this.ctx.fillRect(this.player.shield.x1, this.player.shield.y1, 1, 1);
-            // this.ctx.fillRect(this.player.shield.x2, this.player.shield.y2, 1, 1);
-            // this.ctx.fillRect(this.player.shield.x3, this.player.shield.y3, 1, 1);
-            // this.ctx.stroke();
          }
          else {
             this.player.shield = {
@@ -477,8 +458,9 @@ isInside(pos, rect){
                 y2:0,
                 x3:0,
                 y3:0,
-        };
+            };
          }
+         
         // friction bubbles
         if(!this.player.isFalling() && !this.player.isJumping()) {
                 for(var i = 0; i < 25; i++) {
