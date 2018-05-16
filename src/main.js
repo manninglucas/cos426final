@@ -352,14 +352,12 @@ isInside(pos, rect){
 
 
     draw() {
-        //this.ctx.clearRect(0, 0, this.width, this.height);
         this.ctx.drawImage(this.backgroundImage, 0, 0, this.width, this.height);
 
         const levelData = this.levels[this.level];
         this.ctx.drawImage(this.goalImg, Math.round(this.submitButton.left() - (this.camera.x) + (this.width / 2)),
              this.submitButton.top());
         
-        this.ctx.filter = 'none';
         this.entities.forEach(entity => {
             this.ctx.fillStyle = "#0095DD";
             if (entity.hasSprite) {
@@ -398,12 +396,12 @@ isInside(pos, rect){
                 spike.top(), 
                 spike.width, spike.height);
         });
-        this.ctx.filter = 'none';
 
         this.ctx.fillStyle = "#000000";
         let playerImg = this.player.getSprite();
 
-
+        if (this.lives < 3)
+            this.ctx.filter = `blur(${(3 - this.lives) * 5}px)`;
         if (!this.player.facingRight) {
             this.ctx.save();
             this.ctx.scale(-1, 1);
@@ -416,6 +414,7 @@ isInside(pos, rect){
                 this.player.top(),
                 this.player.width, this.player.height);
         }
+        this.ctx.filter = 'none';
 
 
         var angle = Math.atan2(this.player.pos.y-this.mouseCoords.y, this.player.pos.x- this.camera.x + (this.width / 2)-this.mouseCoords.x) * Math.PI/180;//(this.player.pos.x - this.camera.x + (this.width / 2))-this.mouseCoords.x);
