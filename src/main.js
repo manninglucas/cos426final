@@ -460,7 +460,7 @@ isInside(pos, rect){
                 y3:0,
             };
          }
-         
+
         // friction bubbles
         if(!this.player.isFalling() && !this.player.isJumping()) {
                 for(var i = 0; i < 25; i++) {
